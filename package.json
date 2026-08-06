@@ -8,6 +8,11 @@
     "start": "next start",
     "lint": "eslint"
   },
+  "overrides": {
+    "mina-scheduler": {
+      "next": "$next"
+    }
+  },
   "dependencies": {
     "@nextui-org/system": "^2.4.6",
     "@nextui-org/theme": "^2.4.5",
