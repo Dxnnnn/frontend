@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --brand-50: #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-500: #3b82f6;
+  --brand-700: #1d4ed8;
+  --brand-800: #1e40af;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand-50: #eff6ff;
+  --color-brand-100: #dbeafe;
+  --color-brand-500: #3b82f6;
+  --color-brand-700: #1d4ed8;
+  --color-brand-800: #1e40af;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+@keyframes portal-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.portal-content-enter {
+  animation: portal-content-in 0.28s ease-out;
+}
+
+@keyframes button-shine {
+  0% {
+    transform: translateX(-180%) skewX(-20deg);
+  }
+
+  100% {
+    transform: translateX(320%) skewX(-20deg);
+  }
+}
+
+@keyframes evaluation-ticker {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.landing-shine-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.landing-shine-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.45),
+    transparent
+  );
+  transform: translateX(-180%) skewX(-20deg);
+  animation: button-shine 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.evaluation-ticker-track {
+  display: flex;
+  width: max-content;
+  animation: evaluation-ticker 22s linear infinite;
+}
+
+.evaluation-ticker-track:hover {
+  animation-play-state: paused;
+}
+
+.evaluation-ticker-shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.evaluation-ticker-shine::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.35),
+    transparent
+  );
+  transform: translateX(-180%) skewX(-20deg);
+  animation: button-shine 2.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portal-content-enter {
+    animation: none;
+  }
+
+  .landing-shine-btn::after {
+    animation: none;
+  }
+
+  .evaluation-ticker-track {
+    animation: none;
+  }
+
+  .evaluation-ticker-shine::after {
+    animation: none;
+  }
+}
+
+/* Official faculty evaluation print layout — hide chrome; formal report only */
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  aside,
+  nav {
+    display: none !important;
+  }
+}
