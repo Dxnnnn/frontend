@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
 import { SidebarEdgeToggle } from "@/components/admin/sidebar-edge-toggle";
 import { UserSidebar } from "@/components/user/user-sidebar";
@@ -10,24 +10,37 @@ interface UserShellProps {
 }
 
 const STORAGE_KEY = "user-sidebar-collapsed";
+const COLLAPSED_EVENT = "user-sidebar-collapsed-change";
+
+function subscribeCollapsed(onStoreChange: () => void) {
+  window.addEventListener(COLLAPSED_EVENT, onStoreChange);
+  window.addEventListener("storage", onStoreChange);
+  return () => {
+    window.removeEventListener(COLLAPSED_EVENT, onStoreChange);
+    window.removeEventListener("storage", onStoreChange);
+  };
+}
+
+function getCollapsedSnapshot() {
+  return window.localStorage.getItem(STORAGE_KEY) === "true";
+}
+
+function getCollapsedServerSnapshot() {
+  return false;
+}
 
 export function UserShell({ children }: UserShellProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = useSyncExternalStore(
+    subscribeCollapsed,
+    getCollapsedSnapshot,
+    getCollapsedServerSnapshot,
+  );
 
-  useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === "true") {
-      setCollapsed(true);
-    }
+  const handleToggle = useCallback(() => {
+    const next = !getCollapsedSnapshot();
+    window.localStorage.setItem(STORAGE_KEY, String(next));
+    window.dispatchEvent(new Event(COLLAPSED_EVENT));
   }, []);
-
-  function handleToggle() {
-    setCollapsed((current) => {
-      const next = !current;
-      window.localStorage.setItem(STORAGE_KEY, String(next));
-      return next;
-    });
-  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100">

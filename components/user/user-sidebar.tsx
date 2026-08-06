@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 
 import { LogoutButton } from "@/components/auth/logout-button";
@@ -21,9 +21,16 @@ interface StudentInfo {
   student_level: string | null;
 }
 
+const EMPTY_INFO: StudentInfo = {
+  name: "",
+  username: "",
+  course: null,
+  year_level: null,
+  student_level: null,
+};
+
 function getStudentInfo(): StudentInfo {
-  const empty: StudentInfo = { name: "", username: "", course: null, year_level: null, student_level: null };
-  if (typeof document === "undefined") return empty;
+  if (typeof document === "undefined") return EMPTY_INFO;
   try {
     const raw = document.cookie
       .split("; ")
@@ -31,20 +38,20 @@ function getStudentInfo(): StudentInfo {
       ?.split("=")
       .slice(1)
       .join("=");
-    if (!raw) return empty;
+    if (!raw) return EMPTY_INFO;
     return JSON.parse(decodeURIComponent(raw)) as StudentInfo;
   } catch {
-    return empty;
+    return EMPTY_INFO;
   }
+}
+
+function subscribeStudentInfo() {
+  return () => {};
 }
 
 export function UserSidebar({ collapsed }: UserSidebarProps) {
   const pathname = usePathname();
-  const [info, setInfo] = useState<StudentInfo>({ name: "", username: "", course: null, year_level: null, student_level: null });
-
-  useEffect(() => {
-    setInfo(getStudentInfo());
-  }, []);
+  const info = useSyncExternalStore(subscribeStudentInfo, getStudentInfo, () => EMPTY_INFO);
 
   const displayName = info.name || info.username || "Student";
   const initial = displayName.charAt(0).toUpperCase();

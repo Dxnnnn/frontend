@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loadQuestions } from "@/lib/evaluations/storage";
+import { useIsClient } from "@/lib/hooks/use-is-client";
 import { downloadFacultyEvaluationPdf } from "@/lib/reports/export-faculty-pdf";
 import { getPreparerTitle } from "@/lib/reports/preparer-title";
 import type { EvaluationSubmission } from "@/lib/types/evaluation-submission";
@@ -136,7 +137,7 @@ export function FacultyDetailReport({
   const [subs, setSubs] = useState<EvaluationSubmission[]>([]);
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [position, setPosition] = useState<string>("");
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsClient();
   const [exportingPdf, setExportingPdf] = useState(false);
 
   function goBack() {
@@ -145,8 +146,6 @@ export function FacultyDetailReport({
   }
 
   useEffect(() => {
-    setMounted(true);
-
     void (async () => {
       const [studentSubs, shSubs] = await Promise.all([
         fetch("/api/evaluations", { cache: "no-store" })

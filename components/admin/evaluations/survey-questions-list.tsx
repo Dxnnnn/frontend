@@ -51,7 +51,7 @@ function DeleteConfirmModal({
           </svg>
         </div>
         <h3 className="text-base font-semibold text-slate-900">Delete question?</h3>
-        <p className="mt-2 text-sm text-slate-500 line-clamp-3">"{question.text}"</p>
+        <p className="mt-2 text-sm text-slate-500 line-clamp-3">&ldquo;{question.text}&rdquo;</p>
         <p className="mt-2 text-xs text-red-600">This action cannot be undone.</p>
         <div className="mt-5 flex gap-2">
           <button type="button" onClick={onCancel} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">

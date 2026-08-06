@@ -59,7 +59,6 @@ export function SchoolHeadDashboard({ department }: SchoolHeadDashboardProps) {
     let cancelled = false;
 
     async function load() {
-      setLoading(true);
       try {
         const res = await fetch(
           `/api/faculty/by-department/${encodeURIComponent(department)}`,
@@ -82,11 +81,8 @@ export function SchoolHeadDashboard({ department }: SchoolHeadDashboardProps) {
       }
     }
 
-    if (department) void load();
-    else {
-      setFaculty([]);
-      setSubmissions([]);
-      setLoading(false);
+    if (department) {
+      void load();
     }
 
     const unsub = onEvaluationsUpdated(() => {
@@ -100,17 +96,19 @@ export function SchoolHeadDashboard({ department }: SchoolHeadDashboardProps) {
   }, [department, refreshSubmissions]);
 
   const stats = useMemo(() => {
-    const assigned = faculty.length;
-    const assignedIds = new Set(faculty.map((f) => String(f.id)));
+    const effectiveFaculty = department ? faculty : [];
+    const effectiveSubmissions = department ? submissions : [];
+    const assigned = effectiveFaculty.length;
+    const assignedIds = new Set(effectiveFaculty.map((f) => String(f.id)));
     const assignedNames = new Set(
-      faculty.map((f) => f.name.trim().toLowerCase()).filter(Boolean),
+      effectiveFaculty.map((f) => f.name.trim().toLowerCase()).filter(Boolean),
     );
 
     // A teacher counts as evaluated if any school-head submission matches their id
     // (or name as fallback). Optional soft department filter only when ids differ.
     const evaluatedIds = new Set<string>();
 
-    for (const s of submissions) {
+    for (const s of effectiveSubmissions) {
       const id = String(s.facultyId);
       const name = (s.facultyName ?? "").trim().toLowerCase();
 
@@ -121,7 +119,7 @@ export function SchoolHeadDashboard({ department }: SchoolHeadDashboardProps) {
 
       // Fallback: name match within assigned list (handles id type quirks)
       if (name && assignedNames.has(name)) {
-        const match = faculty.find((f) => f.name.trim().toLowerCase() === name);
+        const match = effectiveFaculty.find((f) => f.name.trim().toLowerCase() === name);
         if (match) evaluatedIds.add(String(match.id));
       }
     }
@@ -130,7 +128,7 @@ export function SchoolHeadDashboard({ department }: SchoolHeadDashboardProps) {
     const pending = Math.max(0, assigned - evaluated);
 
     // Average from submissions linked to this department / assigned teachers
-    const relevant = submissions.filter((s) => {
+    const relevant = effectiveSubmissions.filter((s) => {
       const id = String(s.facultyId);
       if (assignedIds.has(id)) return true;
       const name = (s.facultyName ?? "").trim().toLowerCase();
@@ -164,9 +162,9 @@ export function SchoolHeadDashboard({ department }: SchoolHeadDashboardProps) {
         count: stats.relevant.filter((x) => String(x.facultyId) === String(s.facultyId)).length,
         date: fmtDate(s.submittedAt),
       }));
-  }, [stats.relevant]);
+  }, [stats]);
 
-  if (loading) {
+  if (department && loading) {
     return (
       <div className="space-y-6">
         <div className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />

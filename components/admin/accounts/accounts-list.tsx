@@ -309,7 +309,26 @@ function SchoolHeadList({ refreshKey }: { refreshKey: number }) {
       .finally(() => setLoading(false));
   }
 
-  useEffect(loadData, [refreshKey]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch("/api/school-heads");
+        const data = (await r.json()) as { success?: boolean; schoolHeads?: SchoolHead[] };
+        if (!cancelled) {
+          setSchoolHeads(data.schoolHeads ?? []);
+          setError("");
+        }
+      } catch {
+        if (!cancelled) setError("Failed to load school head accounts.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
 
   async function handleToggle(id: number) {
     const res = await fetch(`/api/school-heads/${id}`, { method: "PATCH" });
@@ -432,7 +451,26 @@ function StudentList({ refreshKey }: { refreshKey: number }) {
       .finally(() => setLoading(false));
   }
 
-  useEffect(loadData, [refreshKey]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch("/api/students");
+        const data = (await r.json()) as { success?: boolean; students?: Student[] };
+        if (!cancelled) {
+          setStudents(data.students ?? []);
+          setError("");
+        }
+      } catch {
+        if (!cancelled) setError("Failed to load student accounts.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
 
   async function handleToggle(id: number) {
     const res = await fetch(`/api/students/${id}`, { method: "PATCH" });

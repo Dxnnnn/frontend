@@ -211,7 +211,26 @@ export function FacultyList({ refreshKey }: FacultyListProps) {
       .finally(() => setLoading(false));
   }
 
-  useEffect(loadData, [refreshKey]);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch("/api/faculty");
+        const data = (await r.json()) as { success?: boolean; faculty?: FacultyMember[] };
+        if (!cancelled) {
+          setFaculty(data.faculty ?? []);
+          setError("");
+        }
+      } catch {
+        if (!cancelled) setError("Failed to load faculty records.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
 
   async function handleToggle(id: number) {
     const res = await fetch(`/api/faculty/${id}`, { method: "PATCH" });

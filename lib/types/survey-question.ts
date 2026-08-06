@@ -1,6 +1,6 @@
 export type SurveyAudience = "student" | "school_head";
 
-export type QuestionSection = "scoring";
+export type QuestionSection = "scoring" | "personal";
 
 export type QuestionCategory =
   | "Instructional Competence"
@@ -55,6 +55,7 @@ export const scoringScale: ScoreLevel[] = [
 
 export const questionSectionLabels: Record<QuestionSection, string> = {
   scoring: "Scoring scale",
+  personal: "Personal questionnaire",
 };
 
 export const questionCategories: QuestionCategory[] = [

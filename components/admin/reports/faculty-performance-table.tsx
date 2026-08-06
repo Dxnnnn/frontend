@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getEvaluationSubmissionsAsync } from "@/lib/user/evaluation-submissions";
 import { getSchoolHeadSubmissionsAsync } from "@/lib/faculty-portal/coordinator-submissions";
 import { onEvaluationsUpdated } from "@/lib/admin/evaluation-events";
+import { useIsClient } from "@/lib/hooks/use-is-client";
 import type { EvaluationSubmission } from "@/lib/types/evaluation-submission";
 import type { TeacherScore } from "@/lib/types/teacher-score";
 import type { ScoreDistribution, ScoreLevelKey } from "@/lib/types/teacher-score";
@@ -125,28 +126,33 @@ export function FacultyPerformanceTable({
   const router = useRouter();
   const [rows, setRows] = useState<FacultyRow[]>([]);
   const [search, setSearch] = useState("");
-  const [mounted, setMounted] = useState(false);
-
-  async function refresh() {
-    const [studentSubs, shSubs] = await Promise.all([
-      getEvaluationSubmissionsAsync(),
-      includeSchoolHead ? getSchoolHeadSubmissionsAsync() : Promise.resolve([]),
-    ]);
-    let all = [...studentSubs, ...shSubs];
-
-    if (departmentFilter) {
-      all = all.filter((s) => departmentMatches(s.department, departmentFilter));
-    }
-
-    const teachers = buildTeacherScores(all);
-    setRows(buildRows(all, teachers));
-  }
+  const mounted = useIsClient();
 
   useEffect(() => {
-    setMounted(true);
+    let cancelled = false;
+
+    async function refresh() {
+      const [studentSubs, shSubs] = await Promise.all([
+        getEvaluationSubmissionsAsync(),
+        includeSchoolHead ? getSchoolHeadSubmissionsAsync() : Promise.resolve([]),
+      ]);
+      if (cancelled) return;
+      let all = [...studentSubs, ...shSubs];
+
+      if (departmentFilter) {
+        all = all.filter((s) => departmentMatches(s.department, departmentFilter));
+      }
+
+      const teachers = buildTeacherScores(all);
+      setRows(buildRows(all, teachers));
+    }
+
     void refresh();
-    return onEvaluationsUpdated(() => void refresh());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const unsub = onEvaluationsUpdated(() => void refresh());
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [departmentFilter, includeSchoolHead]);
 
   const filtered = rows.filter((r) =>

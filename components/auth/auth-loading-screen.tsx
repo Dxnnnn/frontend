@@ -17,10 +17,10 @@ export function AuthLoadingScreen({
   onComplete,
 }: AuthLoadingScreenProps) {
   const [progress, setProgress] = useState(8);
+  const displayProgress = complete ? 100 : progress;
 
   useEffect(() => {
     if (complete) {
-      setProgress(100);
       const timeout = window.setTimeout(() => {
         onComplete?.();
       }, 450);
@@ -64,7 +64,7 @@ export function AuthLoadingScreen({
         <div className="mt-6 h-2.5 overflow-hidden rounded-full bg-slate-200">
           <div
             className="h-full rounded-full bg-brand-700 transition-[width] duration-500 ease-out"
-            style={{ width: `${progress}%` }}
+            style={{ width: `${displayProgress}%` }}
           />
         </div>
 

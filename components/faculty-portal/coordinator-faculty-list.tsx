@@ -70,22 +70,31 @@ export function CoordinatorFacultyList({ department }: CoordinatorFacultyListPro
   useEffect(() => {
     if (!department) return;
 
-    setLoading(true);
-    fetch(`/api/faculty/by-department/${encodeURIComponent(department)}`)
-      .then((r) => r.json())
-      .then((data: { success?: boolean; faculty?: FacultyMember[] }) => {
-        setFaculty(data.faculty ?? []);
-        setError("");
-        refreshEvaluated();
-      })
-      .catch(() => setError("Failed to load faculty records."))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch(`/api/faculty/by-department/${encodeURIComponent(department)}`);
+        const data = (await r.json()) as { success?: boolean; faculty?: FacultyMember[] };
+        if (!cancelled) {
+          setFaculty(data.faculty ?? []);
+          setError("");
+          refreshEvaluated();
+        }
+      } catch {
+        if (!cancelled) setError("Failed to load faculty records.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
 
     const unsub = onEvaluationsUpdated(() => {
       refreshEvaluated();
     });
 
-    return unsub;
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [department, refreshEvaluated]);
 
   function isComplete(member: FacultyMember): boolean {

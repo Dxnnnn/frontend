@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getEvaluationSubmissionsAsync } from "@/lib/user/evaluation-submissions";
-import { formatSubmissionDate } from "@/lib/user/evaluation-submissions";
 import { loadQuestions } from "@/lib/evaluations/storage";
+import { useIsClient } from "@/lib/hooks/use-is-client";
 import { getLiveTeacherScoresAsync, getLiveCombinedDistributionAsync } from "@/lib/reports/live-teacher-scores";
 import { getScoreSlices, getTotalResponses } from "@/lib/reports/teacher-scores";
 import type { EvaluationSubmission } from "@/lib/types/evaluation-submission";
@@ -158,11 +158,10 @@ import type { ScoreDistribution } from "@/lib/types/teacher-score";
 const EMPTY_DIST: ScoreDistribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0, 0: 0 };
 
 function OverallRatingAndDistribution({ submissions }: { submissions: EvaluationSubmission[] }) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useIsClient();
   const [dist, setDist] = useState<ScoreDistribution>(EMPTY_DIST);
 
   useEffect(() => {
-    setMounted(true);
     void getLiveCombinedDistributionAsync().then((d) => setDist(d));
   }, [submissions]);
 
@@ -417,7 +416,7 @@ function FacultyDetailedReport({ submissions, teachers, search }: { submissions:
                     <ul className="space-y-1.5 max-h-40 overflow-y-auto">
                       {subs.filter((s) => s.remarks).map((s) => (
                         <li key={s.id} className="rounded-lg bg-white border border-slate-100 px-3 py-2 text-xs text-slate-600">
-                          "{s.remarks}"
+                          &ldquo;{s.remarks}&rdquo;
                         </li>
                       ))}
                     </ul>
@@ -541,20 +540,30 @@ export function ReportsPanel() {
   const [semFilter, setSemFilter] = useState("all");
   const [deptFilter, setDeptFilter] = useState("all");
 
-  async function refresh() {
-    const [subs, teacherList] = await Promise.all([
-      getEvaluationSubmissionsAsync(),
-      getLiveTeacherScoresAsync(),
-    ]);
-    setSubmissions(subs);
-    setTeachers(teacherList);
-  }
-
   useEffect(() => {
+    let cancelled = false;
+
+    async function refresh() {
+      const [subs, teacherList] = await Promise.all([
+        getEvaluationSubmissionsAsync(),
+        getLiveTeacherScoresAsync(),
+      ]);
+      if (cancelled) return;
+      setSubmissions(subs);
+      setTeachers(teacherList);
+    }
+
     void loadQuestions();
     void refresh();
-    window.addEventListener("eval-submissions-updated", () => void refresh());
-    return () => window.removeEventListener("eval-submissions-updated", () => void refresh());
+
+    const onUpdate = () => {
+      void refresh();
+    };
+    window.addEventListener("eval-submissions-updated", onUpdate);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("eval-submissions-updated", onUpdate);
+    };
   }, []);
 
   // Apply filters

@@ -47,7 +47,7 @@ export function SemesterList({ refreshKey }: SemesterListProps) {
   const [toggling, setToggling] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
+    let cancelled = false;
     void Promise.all([
       getSemestersAsync(),
       fetch("/api/faculty", { cache: "no-store" })
@@ -55,9 +55,21 @@ export function SemesterList({ refreshKey }: SemesterListProps) {
         .then((d: { faculty?: FacultyMember[] }) => d.faculty ?? [])
         .catch(() => [] as FacultyMember[]),
     ])
-      .then(([sems, fac]) => { setSemesters(sems); setFaculty(fac); })
-      .catch(() => setError("Failed to load data."))
-      .finally(() => setLoading(false));
+      .then(([sems, fac]) => {
+        if (!cancelled) {
+          setSemesters(sems);
+          setFaculty(fac);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setError("Failed to load data.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [refreshKey]);
 
   async function handleToggle(id: string) {

@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { getSurveyQuestionsAsync } from "@/lib/evaluations/storage";
-import { addSchoolHeadSubmission, getSchoolHeadSubmissions } from "@/lib/faculty-portal/coordinator-submissions";
+import { addSchoolHeadSubmission } from "@/lib/faculty-portal/coordinator-submissions";
 import { addEvaluationSubmissionAsync } from "@/lib/user/evaluation-submissions";
-import { getActiveSemestersAsync } from "@/lib/semester/storage";import type { Faculty } from "@/lib/types/faculty";
+import { getActiveSemestersAsync } from "@/lib/semester/storage";
+import type { Faculty } from "@/lib/types/faculty";
 import type { SurveyAudience, SurveyQuestion } from "@/lib/types/survey-question";
 import { scoringScale } from "@/lib/types/survey-question";
 
@@ -227,7 +228,7 @@ export function EvaluationFormPanel({
   const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [scoringQuestions, setScoringQuestions] = useState<SurveyQuestion[]>([]);
 
-  const [semester, setSemester] = useState("");
+  const [semesterChoice, setSemesterChoice] = useState("");
   const [availableSemesters, setAvailableSemesters] = useState<string[]>([]);
   const [selectedRowKey, setSelectedRowKey] = useState("");
   const [scoringAnswers, setScoringAnswers] = useState<Record<string, number>>({});
@@ -274,7 +275,6 @@ export function EvaluationFormPanel({
         // keep empty set
       }
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSchoolHeadForm]);
 
   const hasQuestions = useMemo(() => scoringQuestions.length > 0, [scoringQuestions.length]);
@@ -323,28 +323,40 @@ export function EvaluationFormPanel({
     return allowsSummer ? base : base.filter((s) => s !== "Summer");
   }, [availableSemesters, allowsSummer, isElemOrJH]);
 
-  // Clear Summer if it is no longer a valid option for this level
-  useEffect(() => {
-    if (!allowsSummer && semester === "Summer") {
-      setSemester("");
-    }
-  }, [allowsSummer, semester]);
-
-  // Auto-set semester for Elem/JH so the instructor table shows immediately
-  useEffect(() => {
-    if (isElemOrJH && !semester) {
-      setSemester("All");
-    }
-  }, [isElemOrJH, semester]);
+  // Derived semester — avoids setState-in-effect for auto defaults / invalid values
+  const semester = isElemOrJH
+    ? "All"
+    : !allowsSummer && semesterChoice === "Summer"
+      ? ""
+      : semesterChoice;
 
   const rows = useMemo(() => buildRows(faculty), [faculty]);
   const selectedRow = rows.find((r) => r.rowKey === selectedRowKey) ?? null;
+
+  function resetFormAnswers() {
+    setScoringAnswers({});
+    setRemarks("");
+    setError("");
+  }
+
+  function handleSemesterSelect(value: string) {
+    setSemesterChoice(value);
+    setSelectedRowKey("");
+    resetFormAnswers();
+    setSuccess("");
+  }
+
+  function handleInstructorSelect(rowKey: string) {
+    setSelectedRowKey(rowKey);
+    resetFormAnswers();
+  }
 
   // Load faculty + questions — re-runs when semester changes
   useEffect(() => {
     async function load() {
       if (!semester) {
-        setFaculty([]);
+        const empty = await Promise.resolve([] as Faculty[]);
+        setFaculty(empty);
         return;
       }
       try {
@@ -398,21 +410,7 @@ export function EvaluationFormPanel({
     }
 
     void load();
-  }, [audience, departmentFilter, semester, studentLevel, isElemOrJH]);
-
-  useEffect(() => {
-    setSelectedRowKey("");
-    setScoringAnswers({});
-    setRemarks("");
-    setError("");
-    setSuccess("");
-  }, [semester]);
-
-  useEffect(() => {
-    setScoringAnswers({});
-    setRemarks("");
-    setError("");
-  }, [selectedRowKey]);
+  }, [audience, departmentFilter, semester, studentLevel, isElemOrJH, studentInfo.grade]);
 
   function handleScoreChange(questionId: string, score: number) {
     setScoringAnswers((cur) => ({ ...cur, [questionId]: score }));
@@ -472,7 +470,7 @@ export function EvaluationFormPanel({
         const evalKey = `${String(row.faculty.id)}-${row.subject}-${semester}`;
         setEvaluatedKeys((prev) => new Set([...prev, evalKey]));
         setSelectedRowKey("");
-        setSemester("");
+        setSemesterChoice("");
         setScoringAnswers({});
         setRemarks("");
         setSuccess(`✅ Evaluation for ${row.faculty.name} — ${row.subject} submitted successfully.`);
@@ -490,7 +488,7 @@ export function EvaluationFormPanel({
         const evalKey = `${String(row.faculty.id)}-${row.subject}-${semester}`;
         setEvaluatedKeys((prev) => new Set([...prev, evalKey]));
         setSelectedRowKey("");
-        setSemester("");
+        setSemesterChoice("");
         setScoringAnswers({});
         setRemarks("");
         setSuccess(`✅ Evaluation for ${row.faculty.name} — ${row.subject} submitted successfully.`);
@@ -529,7 +527,7 @@ export function EvaluationFormPanel({
           <p className="mt-1 text-sm text-slate-500">Choose the semester for this evaluation.</p>
           <div className="mt-4 flex flex-wrap gap-3">
             {semesterOptions.map((s) => (
-              <button key={s} type="button" onClick={() => setSemester(s)}
+              <button key={s} type="button" onClick={() => handleSemesterSelect(s)}
                 className={`rounded-xl border px-5 py-2.5 text-sm font-semibold transition ${
                   semester === s
                     ? "border-brand-500 bg-brand-700 text-white shadow-sm"
@@ -576,7 +574,7 @@ export function EvaluationFormPanel({
                         subject={row.subject}
                         isSelected={selectedRowKey === row.rowKey}
                         isAlreadyDone={isRowEvaluated(row)}
-                        onSelect={() => setSelectedRowKey(row.rowKey)}
+                        onSelect={() => handleInstructorSelect(row.rowKey)}
                       />
                     ))}
                   </tbody>
