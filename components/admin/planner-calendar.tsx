@@ -1,37 +1,13 @@
 "use client";
 
-import { NextUIProvider } from "@nextui-org/system";
-import { SchedulerProvider, SchedularView } from "mina-scheduler";
-
-import { initialPlannerEvents } from "@/lib/admin/planner-events";
-
 interface PlannerCalendarProps {
   compact?: boolean;
 }
 
 export function PlannerCalendar({ compact = false }: PlannerCalendarProps) {
   return (
-    <NextUIProvider>
-      <SchedulerProvider initialState={initialPlannerEvents} weekStartsOn="monday">
-        <div className={compact ? "max-h-[520px] overflow-auto" : "w-full"}>
-          <SchedularView
-            views={
-              compact
-                ? { views: ["month"], mobileViews: ["month"] }
-                : { views: ["day", "week", "month"], mobileViews: ["day"] }
-            }
-            classNames={
-              compact
-                ? {
-                    tabs: {
-                      panel: "pt-2",
-                    },
-                  }
-                : undefined
-            }
-          />
-        </div>
-      </SchedulerProvider>
-    </NextUIProvider>
+    <div className={`flex items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-400 ${compact ? "h-[520px]" : "h-64 w-full"}`}>
+      Calendar coming soon
+    </div>
   );
 }
