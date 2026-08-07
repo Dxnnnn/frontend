@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
 import { LogoutButton } from "@/components/auth/logout-button";
@@ -51,7 +51,11 @@ function subscribeStudentInfo() {
 
 export function UserSidebar({ collapsed }: UserSidebarProps) {
   const pathname = usePathname();
-  const info = useSyncExternalStore(subscribeStudentInfo, getStudentInfo, () => EMPTY_INFO);
+  const [info, setInfo] = useState<StudentInfo>(EMPTY_INFO);
+
+  useEffect(() => {
+    setInfo(getStudentInfo());
+  }, []);
 
   const displayName = info.name || info.username || "Student";
   const initial = displayName.charAt(0).toUpperCase();
