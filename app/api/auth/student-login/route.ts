@@ -43,6 +43,7 @@ export async function POST(request: Request) {
         year_level: string | null;
         strand: string | null;
         course: string | null;
+        section: string | null;
         role: string;
       };
     };
@@ -92,6 +93,7 @@ export async function POST(request: Request) {
       strand: data.user.strand ?? null,
       year_level: data.user.year_level ?? null,
       course: data.user.course ?? null,
+      section: data.user.section ?? null,
     }), {
       httpOnly: false,
       sameSite: "lax",
