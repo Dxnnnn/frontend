@@ -191,10 +191,16 @@ interface StudentInfo {
   grade: string;
   /** e.g. "TVL", "HUMSS", "STEM" — for Senior High filtering */
   strand: string;
+  /** e.g. "A", "B", "C" — for section filtering */
+  section: string;
+  /** e.g. "BSIT", "BSCS" — for college course filtering */
+  course: string;
+  /** e.g. "1st Year", "4th Year" — for college year level filtering */
+  year_level: string;
 }
 
 function getStudentInfo(): StudentInfo {
-  if (typeof document === "undefined") return { student_level: "", grade: "", strand: "" };
+  if (typeof document === "undefined") return { student_level: "", grade: "", strand: "", section: "", course: "", year_level: "" };
   try {
     const raw = document.cookie
       .split("; ")
@@ -202,20 +208,25 @@ function getStudentInfo(): StudentInfo {
       ?.split("=")
       .slice(1)
       .join("=");
-    if (!raw) return { student_level: "", grade: "", strand: "" };
+    if (!raw) return { student_level: "", grade: "", strand: "", section: "", course: "", year_level: "" };
     const info = JSON.parse(decodeURIComponent(raw)) as {
       student_level?: string;
       grade?: string;
       strand?: string;
       year_level?: string;
+      section?: string;
+      course?: string;
     };
     return {
       student_level: info.student_level ?? "",
       grade: info.grade ?? info.year_level ?? "",
       strand: info.strand ?? "",
+      section: info.section ?? "",
+      course: info.course ?? "",
+      year_level: info.year_level ?? "",
     };
   } catch {
-    return { student_level: "", grade: "", strand: "" };
+    return { student_level: "", grade: "", strand: "", section: "", course: "", year_level: "" };
   }
 }
 
@@ -281,7 +292,7 @@ export function EvaluationFormPanel({
 
   // Get student's level, grade and strand from cookie to filter faculty by department
   const [studentInfo] = useState<StudentInfo>(() =>
-    typeof window !== "undefined" ? getStudentInfo() : { student_level: "", grade: "", strand: "" }
+    typeof window !== "undefined" ? getStudentInfo() : { student_level: "", grade: "", strand: "", section: "", course: "", year_level: "" }
   );
   const studentLevel = studentInfo.student_level;
 
@@ -382,12 +393,32 @@ export function EvaluationFormPanel({
 
         let levelFiltered: Faculty[];
         if (studentLevel === "senior-high" && studentInfo.grade) {
-          // Senior High: must match BOTH the "senior high" prefix AND the student's exact grade
-          // e.g. student Grade 12 - TVL must only see faculty with "Grade 12" in department
-          const gradeKeyword = studentInfo.grade.trim().toLowerCase(); // e.g. "grade 12"
+          const gradeKeyword = studentInfo.grade.trim().toLowerCase();
           levelFiltered = backendFaculty.filter((m) => {
             const dept = m.department.trim().toLowerCase();
             return dept.includes("senior high") && dept.includes(gradeKeyword);
+          });
+        } else if (studentLevel === "college") {
+          // College: filter by year level, course, AND section
+          levelFiltered = backendFaculty.filter((m) => {
+            const dept = m.department.trim().toLowerCase();
+            if (!dept.includes("college")) return false;
+            // Filter by year level if available
+            if (studentInfo.year_level) {
+              const yearKeyword = studentInfo.year_level.trim().toLowerCase();
+              if (!dept.includes(yearKeyword)) return false;
+            }
+            // Filter by course if available (e.g. "bsit", "bscs")
+            if (studentInfo.course) {
+              const courseKeyword = studentInfo.course.trim().toLowerCase();
+              if (!dept.includes(courseKeyword)) return false;
+            }
+            // Filter by section if available (e.g. "section a", "section b")
+            if (studentInfo.section) {
+              const sectionKeyword = `section ${studentInfo.section.trim().toLowerCase()}`;
+              if (!dept.includes(sectionKeyword)) return false;
+            }
+            return true;
           });
         } else if (levelKeyword) {
           levelFiltered = backendFaculty.filter((m) =>
