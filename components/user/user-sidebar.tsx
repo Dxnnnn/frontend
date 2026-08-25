@@ -19,6 +19,8 @@ interface StudentInfo {
   course: string | null;
   year_level: string | null;
   student_level: string | null;
+  grade: string | null;
+  section: string | null;
 }
 
 const EMPTY_INFO: StudentInfo = {
@@ -27,6 +29,8 @@ const EMPTY_INFO: StudentInfo = {
   course: null,
   year_level: null,
   student_level: null,
+  grade: null,
+  section: null,
 };
 
 function getStudentInfo(): StudentInfo {
@@ -60,10 +64,20 @@ export function UserSidebar({ collapsed }: UserSidebarProps) {
   const displayName = info.name || info.username || "Student";
   const initial = displayName.charAt(0).toUpperCase();
 
-  // Build subtitle: course + year_level, or student_level fallback
-  const subtitle = info.course
-    ? [info.course, info.year_level].filter(Boolean).join(" — ")
-    : info.student_level ?? "Student Portal";
+  // Build subtitle: show level + grade + section properly
+  function buildSubtitle(): string {
+    const level = info.student_level;
+    if (level === "college") {
+      return [info.course, info.year_level, info.section ? `Section ${info.section}` : ""].filter(Boolean).join(" · ");
+    }
+    if (level === "senior-high" || level === "junior-high" || level === "elementary") {
+      const levelLabel = level === "senior-high" ? "Senior High" : level === "junior-high" ? "Junior High" : "Elementary";
+      return [levelLabel, info.grade ? `Grade ${info.grade}` : "", info.section ? `Section ${info.section}` : ""].filter(Boolean).join(" · ");
+    }
+    return info.student_level ?? "Student Portal";
+  }
+
+  const subtitle = buildSubtitle();
 
   return (
     <aside
