@@ -133,8 +133,8 @@ export function LoginForm({ portal }: { portal: LoginPortal }) {
     ? "focus:border-brand-500 focus:ring-brand-100"
     : "focus:border-emerald-500 focus:ring-emerald-100";
 
-  const fieldLabel = isStaffPortal ? "ID#" : "Student ID";
-  const fieldPlaceholder = isStaffPortal ? "e.g. SHS-2024-001" : "e.g. 2024-00123";
+  const fieldLabel = isStaffPortal ? "SchoolHead ID" : "Student ID";
+  const fieldPlaceholder = isStaffPortal ? "e.g. SH-2024-001" : "e.g. 2024-00123";
 
   return (
     <form className="space-y-5 transition-colors duration-300" onSubmit={handleSubmit} noValidate>
