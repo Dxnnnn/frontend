@@ -106,7 +106,7 @@ function InstructorRow({
         </div>
       </td>
       <td className="px-4 py-3 text-sm text-slate-600">{subject}</td>
-      <td className="px-4 py-3 text-sm text-slate-500">{member.department}</td>
+      <td className="px-4 py-3 text-sm text-slate-500">{displayDepartment(member.department)}</td>
       <td className="px-4 py-3 text-center">
         <input
           type="radio"
@@ -150,7 +150,10 @@ function QuestionSection({
   );
 }
 
-// ── Flatten faculty × subjects into rows ──────────────────────────────────────
+// ── Display helper: show simplified department for students ──────────────────
+function displayDepartment(dept: string): string {
+  return dept.replace(/Elementary[-–]Junior High School/gi, "Junior High School");
+}
 interface FacultyRow {
   faculty: Faculty;
   subject: string;
@@ -655,7 +658,7 @@ export function EvaluationFormPanel({
                 Evaluating: <span className="text-brand-700">{selectedRow.faculty.name}</span>
                 {selectedRow.subject !== "—" && <> — <span className="text-brand-700">{selectedRow.subject}</span></>}
               </p>
-              <p className="mt-0.5 text-xs text-brand-600">{selectedRow.faculty.department} · {semester}</p>
+              <p className="mt-0.5 text-xs text-brand-600">{displayDepartment(selectedRow.faculty.department)} · {semester}</p>
             </div>
 
             <QuestionSection
