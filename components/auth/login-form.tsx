@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { AuthUser, LoginPortal } from "@/lib/types/auth";
 import { getRoleDestination } from "@/lib/types/auth";
 import { PasswordToggle } from "@/components/auth/password-toggle";
+
+const MAX_ATTEMPTS = 3;
+const COOLDOWN_SECONDS = 180; // 3 minutes
 
 export function LoginForm({ portal }: { portal: LoginPortal }) {
   const router = useRouter();
@@ -16,8 +19,39 @@ export function LoginForm({ portal }: { portal: LoginPortal }) {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [attempts, setAttempts] = useState(0);
+  const [cooldownLeft, setCooldownLeft] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (cooldownLeft <= 0) return;
+    timerRef.current = setInterval(() => {
+      setCooldownLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current!);
+          setAttempts(0);
+          setError("");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current!);
+  }, [cooldownLeft]);
+
+  const isLocked = cooldownLeft > 0;
+  const remainingAttempts = MAX_ATTEMPTS - attempts;
+
+  function formatTime(seconds: number) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isLocked) return;
     setError("");
     setIsSubmitting(true);
 
@@ -38,7 +72,14 @@ export function LoginForm({ portal }: { portal: LoginPortal }) {
         };
 
         if (!response.ok || !data.user) {
-          setError(data.error ?? data.message ?? "Invalid ID number or password.");
+          const newAttempts = attempts + 1;
+          setAttempts(newAttempts);
+          if (newAttempts >= MAX_ATTEMPTS) {
+            setCooldownLeft(COOLDOWN_SECONDS);
+            setError(`Too many failed attempts. Please wait 3 minutes before trying again.`);
+          } else {
+            setError(`${data.error ?? data.message ?? "Invalid ID number or password."} (${MAX_ATTEMPTS - newAttempts} attempt${MAX_ATTEMPTS - newAttempts === 1 ? "" : "s"} remaining)`);
+          }
           setIsSubmitting(false);
           return;
         }
@@ -62,7 +103,14 @@ export function LoginForm({ portal }: { portal: LoginPortal }) {
       };
 
       if (!response.ok || !data.user) {
-        setError(data.error ?? data.message ?? "Invalid Student ID or password.");
+        const newAttempts = attempts + 1;
+        setAttempts(newAttempts);
+        if (newAttempts >= MAX_ATTEMPTS) {
+          setCooldownLeft(COOLDOWN_SECONDS);
+          setError(`Too many failed attempts. Please wait 3 minutes before trying again.`);
+        } else {
+          setError(`${data.error ?? data.message ?? "Invalid Student ID or password."} (${MAX_ATTEMPTS - newAttempts} attempt${MAX_ATTEMPTS - newAttempts === 1 ? "" : "s"} remaining)`);
+        }
         setIsSubmitting(false);
         return;
       }
@@ -100,10 +148,11 @@ export function LoginForm({ portal }: { portal: LoginPortal }) {
           type="text"
           autoComplete="username"
           required
+          disabled={isLocked}
           value={identifier}
           onChange={(e) => setIdentifier(e.target.value)}
           placeholder={fieldPlaceholder}
-          className={`w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all duration-300 focus:ring-4 ${focusFieldClass}`}
+          className={`w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition-all duration-300 focus:ring-4 disabled:opacity-50 ${focusFieldClass}`}
         />
       </div>
 
@@ -118,27 +167,33 @@ export function LoginForm({ portal }: { portal: LoginPortal }) {
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
             required
+            disabled={isLocked}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Enter your password"
-            className={`w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm text-slate-900 outline-none transition-all duration-300 focus:ring-4 ${focusFieldClass}`}
+            className={`w-full rounded-xl border border-slate-200 bg-white px-4 py-3 pr-12 text-sm text-slate-900 outline-none transition-all duration-300 focus:ring-4 disabled:opacity-50 ${focusFieldClass}`}
           />
           <PasswordToggle showPassword={showPassword} onToggle={() => setShowPassword((c) => !c)} />
         </div>
       </div>
 
       {error ? (
-        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div role="alert" className={`rounded-xl border px-4 py-3 text-sm ${isLocked ? "border-amber-200 bg-amber-50 text-amber-700" : "border-red-200 bg-red-50 text-red-700"}`}>
           {error}
+          {isLocked && (
+            <p className="mt-1 font-semibold">
+              Try again in: {formatTime(cooldownLeft)}
+            </p>
+          )}
         </div>
       ) : null}
 
       <button
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || isLocked}
         className={`flex w-full shrink-0 items-center justify-center rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-70 ${submitButtonClass}`}
       >
-        {isSubmitting ? "Signing in..." : "Sign in"}
+        {isLocked ? `Locked — ${formatTime(cooldownLeft)}` : isSubmitting ? "Signing in..." : "Sign in"}
       </button>
     </form>
   );
