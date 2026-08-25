@@ -320,8 +320,9 @@ export function EvaluationFormPanel({
       const dep = departmentFilter.toLowerCase();
       if (dep.includes("college")) return true;
       if (dep.includes("senior high") || dep.includes("senior-high")) return false;
+      if (dep.includes("junior") || dep.includes("elementary")) return false;
     }
-    return true; // default (e.g. unspecified staff): keep Summer available
+    return false; // default: no Summer unless explicitly College
   }, [studentLevel, isElemOrJH, departmentFilter]);
 
   const semesterOptions = useMemo(() => {
