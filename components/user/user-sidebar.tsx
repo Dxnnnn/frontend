@@ -145,7 +145,7 @@ export function UserSidebar({ collapsed }: UserSidebarProps) {
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-white">{displayName}</p>
               {subtitle && (
-                <p className="truncate text-xs text-yellow-300">{subtitle}</p>
+                <p className="text-xs text-yellow-300 leading-relaxed break-words">{subtitle}</p>
               )}
             </div>
           </div>
