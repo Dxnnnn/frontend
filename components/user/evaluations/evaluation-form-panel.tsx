@@ -420,6 +420,38 @@ export function EvaluationFormPanel({
             }
             return true;
           });
+        } else if (studentLevel === "junior-high") {
+          // Junior High: filter by grade AND section
+          levelFiltered = backendFaculty.filter((m) => {
+            const dept = m.department.trim().toLowerCase();
+            if (!dept.includes("junior") && !dept.includes("elementary")) return false;
+            // Filter by grade if available (e.g. "grade 7", "grade 8")
+            if (studentInfo.grade) {
+              const gradeKeyword = studentInfo.grade.trim().toLowerCase();
+              if (!dept.includes(gradeKeyword)) return false;
+            }
+            // Filter by section if available
+            if (studentInfo.section) {
+              const sectionKeyword = `section ${studentInfo.section.trim().toLowerCase()}`;
+              if (!dept.includes(sectionKeyword)) return false;
+            }
+            return true;
+          });
+        } else if (studentLevel === "elementary") {
+          // Elementary: filter by grade AND section
+          levelFiltered = backendFaculty.filter((m) => {
+            const dept = m.department.trim().toLowerCase();
+            if (!dept.includes("elementary")) return false;
+            if (studentInfo.grade) {
+              const gradeKeyword = studentInfo.grade.trim().toLowerCase();
+              if (!dept.includes(gradeKeyword)) return false;
+            }
+            if (studentInfo.section) {
+              const sectionKeyword = `section ${studentInfo.section.trim().toLowerCase()}`;
+              if (!dept.includes(sectionKeyword)) return false;
+            }
+            return true;
+          });
         } else if (levelKeyword) {
           levelFiltered = backendFaculty.filter((m) =>
             m.department.trim().toLowerCase().includes(levelKeyword)
