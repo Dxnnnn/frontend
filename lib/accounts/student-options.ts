@@ -10,11 +10,6 @@ export const STUDENT_LEVEL_OPTIONS: {
   createLabel: string;
 }[] = [
   {
-    id: "elementary",
-    label: "Elementary",
-    createLabel: "Create Elementary Student",
-  },
-  {
     id: "junior-high",
     label: "Junior High",
     createLabel: "Create Junior High Student",
