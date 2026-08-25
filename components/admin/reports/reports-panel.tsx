@@ -96,7 +96,7 @@ function DashboardSummary({ submissions, teachers }: { submissions: EvaluationSu
 
 
 // ── 2. Faculty Performance Ranking ────────────────────────────────────────────
-function FacultyRanking({ teachers }: { teachers: TeacherScore[] }) {
+function FacultyRanking({ teachers, activeFacultyIds }: { teachers: TeacherScore[]; activeFacultyIds: Set<string> }) {
   if (teachers.length === 0) return <EmptyState message="No evaluations submitted yet." />;
   return (
     <div className="overflow-x-auto">
@@ -112,29 +112,39 @@ function FacultyRanking({ teachers }: { teachers: TeacherScore[] }) {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50">
-          {teachers.map((t, i) => (
-            <tr key={t.id} className="hover:bg-slate-50">
-              <td className="py-3 pr-4">
-                <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${i === 0 ? "bg-amber-100 text-amber-700" : i === 1 ? "bg-slate-100 text-slate-600" : i === 2 ? "bg-orange-100 text-orange-700" : "bg-slate-50 text-slate-500"}`}>
-                  {i + 1}
-                </span>
-              </td>
-              <td className="py-3 pr-4 font-medium text-slate-900">{t.name}</td>
-              <td className="py-3 pr-4 text-slate-500">{t.department}</td>
-              <td className="py-3 pr-4">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100">
-                    <div className={`h-full rounded-full ${scoreBarBg(t.overallScore)}`} style={{ width: `${(t.overallScore / 5) * 100}%` }} />
+          {teachers.map((t, i) => {
+            const isDeleted = !activeFacultyIds.has(t.id);
+            return (
+              <tr key={t.id} className="hover:bg-slate-50">
+                <td className="py-3 pr-4">
+                  <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${i === 0 ? "bg-amber-100 text-amber-700" : i === 1 ? "bg-slate-100 text-slate-600" : i === 2 ? "bg-orange-100 text-orange-700" : "bg-slate-50 text-slate-500"}`}>
+                    {i + 1}
+                  </span>
+                </td>
+                <td className="py-3 pr-4 font-medium text-slate-900">
+                  <div className="flex items-center gap-2">
+                    {t.name}
+                    {isDeleted && (
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-600">Deleted</span>
+                    )}
                   </div>
-                  <span className={`font-semibold ${scoreColor(t.overallScore)}`}>{t.overallScore.toFixed(2)}</span>
-                </div>
-              </td>
-              <td className="py-3 pr-4 text-slate-600">{t.evaluationCount}</td>
-              <td className="py-3">
-                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${scoreBadge(t.overallScore)}`}>{scoreLabel(t.overallScore)}</span>
-              </td>
-            </tr>
-          ))}
+                </td>
+                <td className="py-3 pr-4 text-slate-500">{t.department}</td>
+                <td className="py-3 pr-4">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100">
+                      <div className={`h-full rounded-full ${scoreBarBg(t.overallScore)}`} style={{ width: `${(t.overallScore / 5) * 100}%` }} />
+                    </div>
+                    <span className={`font-semibold ${scoreColor(t.overallScore)}`}>{t.overallScore.toFixed(2)}</span>
+                  </div>
+                </td>
+                <td className="py-3 pr-4 text-slate-600">{t.evaluationCount}</td>
+                <td className="py-3">
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${scoreBadge(t.overallScore)}`}>{scoreLabel(t.overallScore)}</span>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -330,7 +340,7 @@ function StudentCompletion({ submissions }: { submissions: EvaluationSubmission[
 
 
 // ── 6. Faculty Detailed Report ────────────────────────────────────────────────
-function FacultyDetailedReport({ submissions, teachers, search }: { submissions: EvaluationSubmission[]; teachers: TeacherScore[]; search: string }) {
+function FacultyDetailedReport({ submissions, teachers, search, activeFacultyIds }: { submissions: EvaluationSubmission[]; teachers: TeacherScore[]; search: string; activeFacultyIds: Set<string> }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const filtered = teachers.filter((t) =>
     t.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -344,6 +354,7 @@ function FacultyDetailedReport({ submissions, teachers, search }: { submissions:
       {filtered.map((t) => {
         const subs = submissions.filter((s) => s.facultyId === t.id);
         const isOpen = expanded === t.id;
+        const isDeleted = !activeFacultyIds.has(t.id);
         return (
           <div key={t.id} className="rounded-xl border border-slate-200 overflow-hidden">
             <button
@@ -356,7 +367,12 @@ function FacultyDetailedReport({ submissions, teachers, search }: { submissions:
                   {t.name.charAt(0)}
                 </span>
                 <div>
-                  <p className="font-semibold text-slate-900">{t.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-slate-900">{t.name}</p>
+                    {isDeleted && (
+                      <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-600">Deleted</span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500">{t.department}</p>
                 </div>
               </div>
@@ -536,6 +552,7 @@ function ExportButtons({ submissions, teachers }: { submissions: EvaluationSubmi
 export function ReportsPanel() {
   const [submissions, setSubmissions] = useState<EvaluationSubmission[]>([]);
   const [teachers, setTeachers] = useState<TeacherScore[]>([]);
+  const [activeFacultyIds, setActiveFacultyIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState("");
   const [semFilter, setSemFilter] = useState("all");
   const [deptFilter, setDeptFilter] = useState("all");
@@ -544,13 +561,15 @@ export function ReportsPanel() {
     let cancelled = false;
 
     async function refresh() {
-      const [subs, teacherList] = await Promise.all([
+      const [subs, teacherList, facultyRes] = await Promise.all([
         getEvaluationSubmissionsAsync(),
         getLiveTeacherScoresAsync(),
+        fetch("/api/faculty", { cache: "no-store" }).then((r) => r.json() as Promise<{ faculty?: Array<{ id: number }> }>),
       ]);
       if (cancelled) return;
       setSubmissions(subs);
       setTeachers(teacherList);
+      setActiveFacultyIds(new Set((facultyRes.faculty ?? []).map((f) => String(f.id))));
     }
 
     void loadQuestions();
@@ -637,7 +656,7 @@ export function ReportsPanel() {
 
       {/* ── Faculty Performance Ranking ── */}
       <Section title="Faculty Performance Ranking" subtitle="Sorted by average score, highest first.">
-        <FacultyRanking teachers={filteredTeachers} />
+        <FacultyRanking teachers={filteredTeachers} activeFacultyIds={activeFacultyIds} />
       </Section>
 
       {/* ── Overall Average Rating + Distribution ── */}
@@ -657,7 +676,7 @@ export function ReportsPanel() {
 
       {/* ── Faculty Detailed Report ── */}
       <Section title="Faculty Detailed Report" subtitle="Click a faculty row to expand their full report.">
-        <FacultyDetailedReport submissions={filteredSubs} teachers={filteredTeachers} search={search} />
+        <FacultyDetailedReport submissions={filteredSubs} teachers={filteredTeachers} search={search} activeFacultyIds={activeFacultyIds} />
       </Section>
 
       {/* ── Recent Evaluation Activity ── */}
