@@ -299,8 +299,8 @@ export function EvaluationFormPanel({
   );
   const studentLevel = studentInfo.student_level;
 
-  // Elementary/JH don't use semesters — auto-set a fixed value so the semester step is skipped
-  const isElemOrJH = studentLevel === "elementary" || studentLevel === "junior-high";
+  // Only Elementary skips semester — JH now uses quarters
+  const isElemOrJH = studentLevel === "elementary";
 
   // Load available semesters from DB on mount — only active ones
   useEffect(() => {
@@ -310,9 +310,10 @@ export function EvaluationFormPanel({
     });
   }, []);
 
-  // Summer term is College-only (not Senior High)
+  // Summer term is College-only (not Senior High or JH)
   const allowsSummer = useMemo(() => {
     if (isElemOrJH) return false;
+    if (studentLevel === "junior-high") return false;
     if (studentLevel === "college") return true;
     if (studentLevel === "senior-high") return false;
     // School head: based on their department
@@ -322,7 +323,7 @@ export function EvaluationFormPanel({
       if (dep.includes("senior high") || dep.includes("senior-high")) return false;
       if (dep.includes("junior") || dep.includes("elementary")) return false;
     }
-    return false; // default: no Summer unless explicitly College
+    return false;
   }, [studentLevel, isElemOrJH, departmentFilter]);
 
   const semesterOptions = useMemo(() => {
@@ -334,9 +335,15 @@ export function EvaluationFormPanel({
     // Filter: Elem/JH get no semesters (auto-set to "All")
     if (isElemOrJH) return [] as string[];
 
+    // JH students only see Quarter options
+    if (studentLevel === "junior-high") {
+      const quarters = base.filter((s) => s.includes("Quarter"));
+      return quarters.length > 0 ? quarters : ["Quarter 1 & 2", "Quarter 3 & 4"];
+    }
+
     // Filter Summer out for non-College levels
-    return allowsSummer ? base : base.filter((s) => s !== "Summer");
-  }, [availableSemesters, allowsSummer, isElemOrJH]);
+    return allowsSummer ? base.filter((s) => !s.includes("Quarter")) : base.filter((s) => s !== "Summer" && !s.includes("Quarter"));
+  }, [availableSemesters, allowsSummer, isElemOrJH, studentLevel]);
 
   // Derived semester — avoids setState-in-effect for auto defaults / invalid values
   const semester = isElemOrJH
@@ -587,11 +594,17 @@ export function EvaluationFormPanel({
 
       <form onSubmit={handleSubmitClick} className="space-y-6">
 
-        {/* Step 1: Semester — hidden for Elementary/Junior High students */}
+        {/* Step 1: Semester — hidden for Elementary students only */}
         {!isElemOrJH && (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-base font-semibold text-slate-900">Step 1 — Select Semester</h2>
-          <p className="mt-1 text-sm text-slate-500">Choose the semester for this evaluation.</p>
+          <h2 className="text-base font-semibold text-slate-900">
+            Step 1 — {studentLevel === "junior-high" ? "Select Quarter" : "Select Semester"}
+          </h2>
+          <p className="mt-1 text-sm text-slate-500">
+            {studentLevel === "junior-high"
+              ? "Choose the quarter period for this evaluation."
+              : "Choose the semester for this evaluation."}
+          </p>
           <div className="mt-4 flex flex-wrap gap-3">
             {semesterOptions.map((s) => (
               <button key={s} type="button" onClick={() => handleSemesterSelect(s)}
