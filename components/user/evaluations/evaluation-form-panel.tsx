@@ -331,14 +331,23 @@ export function EvaluationFormPanel({
 
     if (isElemOrJH) return [] as string[];
 
+    // JH students only see Quarter options from DB
     if (studentLevel === "junior-high") {
       return base.filter((s) => s.includes("Quarter"));
+    }
+
+    // School head for Elementary-JH department → show quarters only
+    if (departmentFilter) {
+      const dep = departmentFilter.toLowerCase();
+      if (dep.includes("junior") || dep.includes("elementary")) {
+        return base.filter((s) => s.includes("Quarter"));
+      }
     }
 
     return allowsSummer
       ? base.filter((s) => !s.includes("Quarter"))
       : base.filter((s) => !s.includes("Summer") && !s.includes("Quarter"));
-  }, [availableSemesters, allowsSummer, isElemOrJH, studentLevel]);
+  }, [availableSemesters, allowsSummer, isElemOrJH, studentLevel, departmentFilter]);
 
   // Derived semester — avoids setState-in-effect for auto defaults / invalid values
   const semester = isElemOrJH
@@ -594,10 +603,10 @@ export function EvaluationFormPanel({
         {!isElemOrJH && (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-base font-semibold text-slate-900">
-            Step 1 — {studentLevel === "junior-high" ? "Select Quarter" : "Select Semester"}
+            Step 1 — {studentLevel === "junior-high" || (departmentFilter && (departmentFilter.toLowerCase().includes("junior") || departmentFilter.toLowerCase().includes("elementary"))) ? "Select Quarter" : "Select Semester"}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            {studentLevel === "junior-high"
+            {studentLevel === "junior-high" || (departmentFilter && (departmentFilter.toLowerCase().includes("junior") || departmentFilter.toLowerCase().includes("elementary")))
               ? "Choose the quarter period for this evaluation."
               : "Choose the semester for this evaluation."}
           </p>
