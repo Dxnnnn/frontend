@@ -152,12 +152,14 @@ function QuestionCard({
   index,
   onEdit,
   onToggle,
+  onDelete,
   dragHandleProps,
 }: {
   question: SurveyQuestion;
   index: number;
   onEdit: () => void;
   onToggle: () => void;
+  onDelete: () => void;
   dragHandleProps: React.HTMLAttributes<HTMLDivElement>;
 }) {
   return (
@@ -240,6 +242,17 @@ function QuestionCard({
             }`}
           >
             {question.isActive ? "Close" : "Open"}
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            title="Delete"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-100"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M10 11v6M14 11v6M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-9 0h10l-1 12a1 1 0 01-1 1H9a1 1 0 01-1-1L7 7z" />
+            </svg>
+            Delete
           </button>
         </div>
       </div>
@@ -433,6 +446,7 @@ export function SurveyQuestionsList({
                   index={globalIdx}
                   onEdit={() => setEditTarget(question)}
                   onToggle={() => handleToggle(question)}
+                  onDelete={() => handleDelete(question)}
                   dragHandleProps={{}}
                 />
               </div>
