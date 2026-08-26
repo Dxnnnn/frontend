@@ -386,9 +386,10 @@ export function EvaluationFormPanel({
         return;
       }
       try {
-        // Elem/JH don't use semester filter — fetch all active faculty
+        // Elem/JH students and JH school heads don't use semester filter — fetch all active faculty
         const isJH = studentLevel === "junior-high";
-        const url = (isElemOrJH || isJH)
+        const isJHSchoolHead = departmentFilter && (departmentFilter.toLowerCase().includes("junior") || departmentFilter.toLowerCase().includes("elementary"));
+        const url = (isElemOrJH || isJH || isJHSchoolHead)
           ? `/api/faculty?semester=All`
           : `/api/faculty?semester=${encodeURIComponent(semester)}`;
         const res = await fetch(url, { cache: "no-store" });
