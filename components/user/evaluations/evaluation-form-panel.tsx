@@ -305,7 +305,7 @@ export function EvaluationFormPanel({
   // Load available semesters from DB on mount — only active ones
   useEffect(() => {
     void getActiveSemestersAsync().then((sems) => {
-      const terms = [...new Set(sems.map((s) => s.term))];
+      const terms = [...new Set(sems.map((s) => `${s.schoolYear} · ${s.term}`))];
       setAvailableSemesters(terms);
     });
   }, []);
@@ -327,21 +327,17 @@ export function EvaluationFormPanel({
   }, [studentLevel, isElemOrJH, departmentFilter]);
 
   const semesterOptions = useMemo(() => {
-    // Only use what the DB returns — no hardcoded fallbacks
     const base = availableSemesters;
 
-    // Elementary only skips semester step
     if (isElemOrJH) return [] as string[];
 
-    // JH students only see Quarter options from DB
     if (studentLevel === "junior-high") {
       return base.filter((s) => s.includes("Quarter"));
     }
 
-    // SHS/College — show only semester options (no quarters), filter Summer for non-College
     return allowsSummer
       ? base.filter((s) => !s.includes("Quarter"))
-      : base.filter((s) => s !== "Summer" && !s.includes("Quarter"));
+      : base.filter((s) => !s.includes("Summer") && !s.includes("Quarter"));
   }, [availableSemesters, allowsSummer, isElemOrJH, studentLevel]);
 
   // Derived semester — avoids setState-in-effect for auto defaults / invalid values
