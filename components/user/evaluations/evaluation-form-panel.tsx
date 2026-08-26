@@ -305,7 +305,7 @@ export function EvaluationFormPanel({
   // Load available semesters from DB on mount — only active ones
   useEffect(() => {
     void getActiveSemestersAsync().then((sems) => {
-      const terms = [...new Set(sems.map((s) => `${s.schoolYear} · ${s.term}`))];
+      const terms = [...new Set(sems.map((s) => `SY-${s.schoolYear} ${s.term}`))];
       setAvailableSemesters(terms);
     });
   }, []);
