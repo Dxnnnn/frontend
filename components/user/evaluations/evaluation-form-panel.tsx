@@ -373,7 +373,8 @@ export function EvaluationFormPanel({
   }
 
   function handleInstructorSelect(rowKey: string) {
-    setSelectedRowKey(rowKey);
+    // Toggle — clicking selected row deselects it
+    setSelectedRowKey((prev) => prev === rowKey ? "" : rowKey);
     resetFormAnswers();
   }
 

@@ -113,7 +113,7 @@ export function FacultyPortalSidebar({
               <p className="truncate text-sm font-semibold text-white" title={displayName}>
                 {displayName}
               </p>
-              <p className="truncate text-xs text-yellow-300" title={subtitle}>
+              <p className="text-xs text-yellow-300 leading-relaxed break-words" title={subtitle}>
                 {subtitle}
               </p>
             </div>
