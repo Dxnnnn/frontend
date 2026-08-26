@@ -66,10 +66,10 @@ export function SemesterCreateModal({
                 id="create-semester-dialog-title"
                 className="text-xl font-semibold text-slate-900"
               >
-                Add new semester
+                Add new Semester & Quarter
               </h2>
               <p className="mt-1 text-sm text-slate-500">
-                Set the school year, semester, and subjects graded in it.
+                Set the school year, semester,quarter and subjects graded in it.
               </p>
             </div>
 

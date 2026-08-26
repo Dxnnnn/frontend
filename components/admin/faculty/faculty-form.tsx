@@ -107,19 +107,26 @@ export function FacultyForm({ onCreated, embedded = false }: FacultyFormProps) {
   const hasElem = departments.includes("Elementary-Junior High School");
   const hasSHS = departments.includes("Senior High School");
   const hasCollege = departments.includes("College");
-  // Semester only applies to SHS and College (Elementary/JH use quarters, not semesters)
-  const showSemester = hasSHS || hasCollege;
+  // Semester applies to SHS and College; Quarter applies to JH
+  const showSemester = hasSHS || hasCollege || hasElem;
 
-  // Build semester options from DB — filter Summer for non-College
+  // Build semester options from DB — filter based on department
   const semesterOptions: string[] = (() => {
-    const base = dbSemesters.length > 0
-      ? dbSemesters
-          .filter((s) => hasCollege || s.term !== "Summer")
-          .map((s) => `${s.schoolYear} · ${s.term}`)
-      : hasCollege
-        ? ["1st Semester", "2nd Semester", "Summer"]
-        : ["1st Semester", "2nd Semester"];
-    return base;
+    if (dbSemesters.length > 0) {
+      return dbSemesters
+        .filter((s) => {
+          const isQuarter = s.term.includes("Quarter");
+          if (hasElem && !hasSHS && !hasCollege) return isQuarter; // JH only → show quarters only
+          if (!hasElem && (hasSHS || hasCollege)) {
+            if (!hasCollege && s.term === "Summer") return false; // no summer for SHS only
+            return !isQuarter; // SHS/College → no quarters
+          }
+          return true; // mixed → show all
+        })
+        .map((s) => `${s.schoolYear} · ${s.term}`);
+    }
+    if (hasElem && !hasSHS && !hasCollege) return ["Quarter 1 & 2", "Quarter 3 & 4"];
+    return hasCollege ? ["1st Semester", "2nd Semester", "Summer"] : ["1st Semester", "2nd Semester"];
   })();
 
   function addSubject() {
@@ -374,8 +381,8 @@ export function FacultyForm({ onCreated, embedded = false }: FacultyFormProps) {
         {/* Semester multi-select — only for SHS and College (Summer = College only) */}
         {showSemester && (
           <MultiSelect
-            label="Semester (which semesters does this faculty teach?)"
-            options={semesterOptions}
+            label={hasElem && !hasSHS && !hasCollege ? "Quarter (which quarters does this faculty teach?)" : "Semester (which semesters does this faculty teach?)"}
+            options={semesterOptions.filter((s) => semesterOptions.includes(s))}
             selected={semesters.filter((s) => semesterOptions.includes(s))}
             onToggle={(v) => setSemesters((prev) => toggle(prev, v))}
           />
