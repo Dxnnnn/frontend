@@ -327,22 +327,21 @@ export function EvaluationFormPanel({
   }, [studentLevel, isElemOrJH, departmentFilter]);
 
   const semesterOptions = useMemo(() => {
-    // Base options: from DB if available, otherwise fall back to defaults
-    const base = availableSemesters.length > 0
-      ? availableSemesters
-      : ["1st Semester", "2nd Semester", "Summer"];
+    // Only use what the DB returns — no hardcoded fallbacks
+    const base = availableSemesters;
 
-    // Filter: Elem/JH get no semesters (auto-set to "All")
+    // Elementary only skips semester step
     if (isElemOrJH) return [] as string[];
 
-    // JH students only see Quarter options
+    // JH students only see Quarter options from DB
     if (studentLevel === "junior-high") {
-      const quarters = base.filter((s) => s.includes("Quarter"));
-      return quarters.length > 0 ? quarters : ["Quarter 1 & 2", "Quarter 3 & 4"];
+      return base.filter((s) => s.includes("Quarter"));
     }
 
-    // Filter Summer out for non-College levels
-    return allowsSummer ? base.filter((s) => !s.includes("Quarter")) : base.filter((s) => s !== "Summer" && !s.includes("Quarter"));
+    // SHS/College — show only semester options (no quarters), filter Summer for non-College
+    return allowsSummer
+      ? base.filter((s) => !s.includes("Quarter"))
+      : base.filter((s) => s !== "Summer" && !s.includes("Quarter"));
   }, [availableSemesters, allowsSummer, isElemOrJH, studentLevel]);
 
   // Derived semester — avoids setState-in-effect for auto defaults / invalid values
