@@ -9,6 +9,32 @@ import { PasswordToggle } from "@/components/auth/password-toggle";
 
 const MAX_ATTEMPTS = 3;
 const COOLDOWN_SECONDS = 180;
+const LOCKOUT_KEY = "login_lockout_admin";
+
+function getLockoutState(): { cooldownLeft: number; attempts: number } {
+  if (typeof window === "undefined") return { cooldownLeft: 0, attempts: 0 };
+  try {
+    const raw = localStorage.getItem(LOCKOUT_KEY);
+    if (!raw) return { cooldownLeft: 0, attempts: 0 };
+    const { lockedUntil, attempts } = JSON.parse(raw) as { lockedUntil: number; attempts: number };
+    const now = Date.now();
+    const cooldownLeft = lockedUntil ? Math.max(0, Math.ceil((lockedUntil - now) / 1000)) : 0;
+    return { cooldownLeft, attempts: cooldownLeft > 0 ? attempts : 0 };
+  } catch {
+    return { cooldownLeft: 0, attempts: 0 };
+  }
+}
+
+function saveLockout(attempts: number, lockNow: boolean) {
+  if (typeof window === "undefined") return;
+  const lockedUntil = lockNow ? Date.now() + COOLDOWN_SECONDS * 1000 : 0;
+  localStorage.setItem(LOCKOUT_KEY, JSON.stringify({ lockedUntil, attempts }));
+}
+
+function clearLockout() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(LOCKOUT_KEY);
+}
 
 export function AdminLoginForm() {
   const router = useRouter();
@@ -23,6 +49,16 @@ export function AdminLoginForm() {
   const [cooldownLeft, setCooldownLeft] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Restore lockout from localStorage on mount
+  useEffect(() => {
+    const { cooldownLeft: saved, attempts: savedAttempts } = getLockoutState();
+    setAttempts(savedAttempts);
+    if (saved > 0) {
+      setCooldownLeft(saved);
+      setError(`Too many failed attempts. Please wait 3 minutes before trying again.`);
+    }
+  }, []);
+
   useEffect(() => {
     if (cooldownLeft <= 0) return;
     timerRef.current = setInterval(() => {
@@ -31,6 +67,7 @@ export function AdminLoginForm() {
           clearInterval(timerRef.current!);
           setAttempts(0);
           setError("");
+          clearLockout();
           return 0;
         }
         return prev - 1;
@@ -71,8 +108,10 @@ export function AdminLoginForm() {
         setAttempts(newAttempts);
         if (newAttempts >= MAX_ATTEMPTS) {
           setCooldownLeft(COOLDOWN_SECONDS);
+          saveLockout(newAttempts, true);
           setError(`Too many failed attempts. Please wait 3 minutes before trying again.`);
         } else {
+          saveLockout(newAttempts, false);
           setError(`${data.error ?? data.message ?? "Invalid email or password."} (${MAX_ATTEMPTS - newAttempts} attempt${MAX_ATTEMPTS - newAttempts === 1 ? "" : "s"} remaining)`);
         }
         setIsSubmitting(false);
@@ -84,8 +123,10 @@ export function AdminLoginForm() {
         setAttempts(newAttempts);
         if (newAttempts >= MAX_ATTEMPTS) {
           setCooldownLeft(COOLDOWN_SECONDS);
+          saveLockout(newAttempts, true);
           setError(`Too many failed attempts. Please wait 3 minutes before trying again.`);
         } else {
+          saveLockout(newAttempts, false);
           setError(`This account does not have admin access. (${MAX_ATTEMPTS - newAttempts} attempt${MAX_ATTEMPTS - newAttempts === 1 ? "" : "s"} remaining)`);
         }
         setIsSubmitting(false);

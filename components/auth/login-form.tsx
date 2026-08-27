@@ -10,6 +10,35 @@ import { PasswordToggle } from "@/components/auth/password-toggle";
 const MAX_ATTEMPTS = 3;
 const COOLDOWN_SECONDS = 180; // 3 minutes
 
+function getLockoutKey(portal: string) {
+  return `login_lockout_${portal}`;
+}
+
+function getLockoutState(portal: string): { cooldownLeft: number; attempts: number } {
+  if (typeof window === "undefined") return { cooldownLeft: 0, attempts: 0 };
+  try {
+    const raw = localStorage.getItem(getLockoutKey(portal));
+    if (!raw) return { cooldownLeft: 0, attempts: 0 };
+    const { lockedUntil, attempts } = JSON.parse(raw) as { lockedUntil: number; attempts: number };
+    const now = Date.now();
+    const cooldownLeft = lockedUntil ? Math.max(0, Math.ceil((lockedUntil - now) / 1000)) : 0;
+    return { cooldownLeft, attempts: cooldownLeft > 0 ? attempts : 0 };
+  } catch {
+    return { cooldownLeft: 0, attempts: 0 };
+  }
+}
+
+function saveLockout(portal: string, attempts: number, lockNow: boolean) {
+  if (typeof window === "undefined") return;
+  const lockedUntil = lockNow ? Date.now() + COOLDOWN_SECONDS * 1000 : 0;
+  localStorage.setItem(getLockoutKey(portal), JSON.stringify({ lockedUntil, attempts }));
+}
+
+function clearLockout(portal: string) {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(getLockoutKey(portal));
+}
+
 export function LoginForm({ portal }: { portal: LoginPortal }) {
   const router = useRouter();
 
@@ -23,6 +52,16 @@ export function LoginForm({ portal }: { portal: LoginPortal }) {
   const [cooldownLeft, setCooldownLeft] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // On mount — restore lockout state from localStorage
+  useEffect(() => {
+    const { cooldownLeft: saved, attempts: savedAttempts } = getLockoutState(portal);
+    setAttempts(savedAttempts);
+    if (saved > 0) {
+      setCooldownLeft(saved);
+      setError(`Too many failed attempts. Please wait 3 minutes before trying again.`);
+    }
+  }, [portal]);
+
   // Cooldown countdown timer
   useEffect(() => {
     if (cooldownLeft <= 0) return;
@@ -32,13 +71,14 @@ export function LoginForm({ portal }: { portal: LoginPortal }) {
           clearInterval(timerRef.current!);
           setAttempts(0);
           setError("");
+          clearLockout(portal);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timerRef.current!);
-  }, [cooldownLeft]);
+  }, [cooldownLeft, portal]);
 
   const isLocked = cooldownLeft > 0;
   const remainingAttempts = MAX_ATTEMPTS - attempts;
@@ -76,8 +116,10 @@ export function LoginForm({ portal }: { portal: LoginPortal }) {
           setAttempts(newAttempts);
           if (newAttempts >= MAX_ATTEMPTS) {
             setCooldownLeft(COOLDOWN_SECONDS);
+            saveLockout(portal, newAttempts, true);
             setError(`Too many failed attempts. Please wait 3 minutes before trying again.`);
           } else {
+            saveLockout(portal, newAttempts, false);
             setError(`${data.error ?? data.message ?? "Invalid ID number or password."} (${MAX_ATTEMPTS - newAttempts} attempt${MAX_ATTEMPTS - newAttempts === 1 ? "" : "s"} remaining)`);
           }
           setIsSubmitting(false);
@@ -107,8 +149,10 @@ export function LoginForm({ portal }: { portal: LoginPortal }) {
         setAttempts(newAttempts);
         if (newAttempts >= MAX_ATTEMPTS) {
           setCooldownLeft(COOLDOWN_SECONDS);
+          saveLockout(portal, newAttempts, true);
           setError(`Too many failed attempts. Please wait 3 minutes before trying again.`);
         } else {
+          saveLockout(portal, newAttempts, false);
           setError(`${data.error ?? data.message ?? "Invalid Student ID or password."} (${MAX_ATTEMPTS - newAttempts} attempt${MAX_ATTEMPTS - newAttempts === 1 ? "" : "s"} remaining)`);
         }
         setIsSubmitting(false);
