@@ -92,7 +92,7 @@ export function AuthPanel() {
 
       <PortalSwitcher portal={portal} onChange={setPortal} />
 
-      <LoginForm portal={portal} />
+      <LoginForm key={portal} portal={portal} />
     </div>
   );
 }
