@@ -77,6 +77,7 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
       {/* ── Logout ── */}
       <div className="border-t border-white/10 px-3 py-4">
         <LogoutButton
+          redirectTo="/admin/login"
           collapsed={collapsed}
           className={`flex w-full items-center rounded-xl px-3 py-2.5 text-sm font-medium text-blue-100 transition hover:bg-white/10 hover:text-white ${
             collapsed ? "justify-center" : "gap-3"

@@ -13,6 +13,7 @@ interface FacultyMember {
   department: string;
   subjects: string;
   created_at: string;
+  profile_image?: string | null;
 }
 
 interface CoordinatorFacultyListProps {
@@ -73,7 +74,7 @@ export function CoordinatorFacultyList({ department }: CoordinatorFacultyListPro
     let cancelled = false;
     void (async () => {
       try {
-        const r = await fetch(`/api/faculty/by-department/${encodeURIComponent(department)}`);
+        const r = await fetch(`/api/faculty?department=${encodeURIComponent(department)}`);
         const data = (await r.json()) as { success?: boolean; faculty?: FacultyMember[] };
         if (!cancelled) {
           setFaculty(data.faculty ?? []);
@@ -240,7 +241,24 @@ export function CoordinatorFacultyList({ department }: CoordinatorFacultyListPro
                 const complete = isComplete(member);
                 return (
                   <tr key={member.id} className="text-slate-700">
-                    <td className="px-6 py-4 font-medium text-slate-900">{member.name}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col items-center gap-1.5 w-20 text-center">
+                        {member.profile_image ? (
+                          <img
+                            src={member.profile_image}
+                            alt={member.name}
+                            className="h-12 w-12 rounded-full object-cover border-2 border-white shadow-sm"
+                          />
+                        ) : (
+                          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 border-2 border-white shadow-sm">
+                            {member.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                        <span className="text-xs font-medium text-slate-900 leading-tight break-words w-full">
+                          {member.name}
+                        </span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-slate-500">{member.position ?? "—"}</td>
                     <td className="px-6 py-4">
                       {member.subjects ? (

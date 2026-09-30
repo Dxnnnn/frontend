@@ -100,11 +100,6 @@ npm run lint    # Run ESLint
 | School Head | `/login`        | `/faculty`  | Evaluate faculty and view reports            |
 | Student     | `/login`        | `/user`     | Submit faculty evaluations                   |
 
-### Demo Accounts
-
-| Role        | Username / ID  | Password      |
-|-------------|----------------|---------------|
-| Admin       | `admin@bc.com` | `admin123`    |
 
 Student and school head accounts are created by the admin through the Accounts page.
 

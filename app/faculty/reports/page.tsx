@@ -19,6 +19,7 @@ export default async function FacultyReportsPage() {
           departmentFilter={department}
           reportBasePath="/faculty/reports"
           includeSchoolHead
+          schoolHeadOnly
         />
       </main>
     </div>

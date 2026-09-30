@@ -10,19 +10,21 @@ interface LogoutButtonProps {
   className?: string;
   showLabel?: boolean;
   collapsed?: boolean;
+  redirectTo?: string;
 }
 
 export function LogoutButton({
   className = "",
   showLabel = true,
   collapsed = false,
+  redirectTo = "/",
 }: LogoutButtonProps) {
   const router = useRouter();
   const [showLoadingScreen, setShowLoadingScreen] = useState(false);
   const [loadingComplete, setLoadingComplete] = useState(false);
 
   function handleLoadingComplete() {
-    router.push("/");
+    router.push(redirectTo);
     router.refresh();
   }
 

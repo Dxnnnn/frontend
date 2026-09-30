@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FacultyProfileModal } from "./faculty-profile-modal";
+import type { FacultyProfileData } from "./faculty-profile-modal";
 
 interface FacultyMember {
   id: number;
@@ -12,6 +14,7 @@ interface FacultyMember {
   semester: string | null;
   is_active: number;
   created_at: string;
+  profile_image?: string | null;
 }
 
 interface FacultyListProps {
@@ -198,6 +201,7 @@ export function FacultyList({ refreshKey }: FacultyListProps) {
   const [search, setSearch] = useState("");
   const [filterDept, setFilterDept] = useState("");
   const [editTarget, setEditTarget] = useState<FacultyMember | null>(null);
+  const [profileTarget, setProfileTarget] = useState<FacultyMember | null>(null);
 
   function loadData() {
     setLoading(true);
@@ -286,6 +290,20 @@ export function FacultyList({ refreshKey }: FacultyListProps) {
       {editTarget && (
         <EditFacultyModal member={editTarget} onClose={() => setEditTarget(null)} onSaved={loadData} />
       )}
+      {profileTarget && (
+        <FacultyProfileModal
+          faculty={{
+            name: profileTarget.name,
+            email: profileTarget.email,
+            position: profileTarget.position,
+            department: profileTarget.department,
+            subjects: profileTarget.subjects,
+            semester: profileTarget.semester,
+            profile_image: profileTarget.profile_image,
+          } satisfies FacultyProfileData}
+          onClose={() => setProfileTarget(null)}
+        />
+      )}
 
       <section className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {/* Search + Filter */}
@@ -339,7 +357,28 @@ export function FacultyList({ refreshKey }: FacultyListProps) {
               <tbody className="divide-y divide-slate-100">
                 {filtered.map((member) => (
                   <tr key={member.id} className="text-slate-700 hover:bg-slate-50 transition">
-                    <td className="px-6 py-4 font-medium text-slate-900">{member.name}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col items-center gap-1.5 w-20 text-center">
+                        {member.profile_image ? (
+                          <img
+                            src={member.profile_image}
+                            alt={member.name}
+                            className="h-12 w-12 rounded-full object-cover border-2 border-white shadow-sm"
+                          />
+                        ) : (
+                          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 border-2 border-white shadow-sm">
+                            {member.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setProfileTarget(member)}
+                          className="text-xs font-medium text-brand-700 leading-tight break-words w-full text-center underline-offset-2 hover:underline transition"
+                        >
+                          {member.name}
+                        </button>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-slate-500">{member.position ?? "—"}</td>
                     <td className="px-6 py-4">{member.department}</td>
                     <td className="px-6 py-4 max-w-xs">

@@ -113,15 +113,19 @@ export interface FacultyPerformanceTableProps {
   reportBasePath?: string;
   /**
    * When true, merges school-head submissions with student evaluations.
-   * Useful for school head portal; leave false for pure admin student view.
    */
   includeSchoolHead?: boolean;
+  /**
+   * When true, only shows school head submissions (hides student evaluations).
+   */
+  schoolHeadOnly?: boolean;
 }
 
 export function FacultyPerformanceTable({
   departmentFilter,
   reportBasePath = "/admin/reports",
   includeSchoolHead = false,
+  schoolHeadOnly = false,
 }: FacultyPerformanceTableProps) {
   const router = useRouter();
   const [rows, setRows] = useState<FacultyRow[]>([]);
@@ -133,7 +137,7 @@ export function FacultyPerformanceTable({
 
     async function refresh() {
       const [studentSubs, shSubs] = await Promise.all([
-        getEvaluationSubmissionsAsync(),
+        schoolHeadOnly ? Promise.resolve([]) : getEvaluationSubmissionsAsync(),
         includeSchoolHead ? getSchoolHeadSubmissionsAsync() : Promise.resolve([]),
       ]);
       if (cancelled) return;
@@ -153,7 +157,7 @@ export function FacultyPerformanceTable({
       cancelled = true;
       unsub();
     };
-  }, [departmentFilter, includeSchoolHead]);
+  }, [departmentFilter, includeSchoolHead, schoolHeadOnly]);
 
   const filtered = rows.filter((r) =>
     r.name.toLowerCase().includes(search.toLowerCase()) ||
