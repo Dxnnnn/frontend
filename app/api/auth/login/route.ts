@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       role: (data.user.role ?? "admin") as UserRole,
     };
 
-    const sessionMaxAge = body.rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 8;
+    const sessionMaxAge = body.rememberMe ? 60 * 60 * 24 * 30 : undefined;
 
     const response = NextResponse.json({ user });
 
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       sameSite: "lax",
       secure: process.env.NODE_ENV === "production",
       path: "/",
-      maxAge: sessionMaxAge,
+      ...(sessionMaxAge ? { maxAge: sessionMaxAge } : {}),
     });
 
     // Store JWT for proxying to backend
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
         path: "/",
-        maxAge: sessionMaxAge,
+        ...(sessionMaxAge ? { maxAge: sessionMaxAge } : {}),
       });
     }
 

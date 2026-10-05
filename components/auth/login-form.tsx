@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { AuthUser, LoginPortal } from "@/lib/types/auth";
 import { getRoleDestination } from "@/lib/types/auth";
 import { PasswordToggle } from "@/components/auth/password-toggle";
+import { markSessionActive } from "@/hooks/use-session-guard";
 
 const MAX_ATTEMPTS = 3;
 const COOLDOWN_SECONDS = 180; // 3 minutes
@@ -126,6 +127,7 @@ export function LoginForm({ portal }: { portal: LoginPortal }) {
           return;
         }
 
+        markSessionActive();
         router.push(getRoleDestination(data.user.role));
         router.refresh();
         return;
@@ -159,6 +161,7 @@ export function LoginForm({ portal }: { portal: LoginPortal }) {
         return;
       }
 
+      markSessionActive();
       router.push(getRoleDestination(data.user.role));
       router.refresh();
     } catch {

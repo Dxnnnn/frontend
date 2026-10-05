@@ -293,7 +293,7 @@ export function FacultyForm({ onCreated, embedded = false }: FacultyFormProps) {
               </label>
               {profileImage && (
                 <button type="button" onClick={() => setProfileImage(null)}
-                  className="text-xs text-red-500 hover:text-red-700">
+                  className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100">
                   Remove photo
                 </button>
               )}

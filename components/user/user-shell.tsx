@@ -4,12 +4,14 @@ import { useCallback, useState } from "react";
 
 import { SidebarEdgeToggle } from "@/components/admin/sidebar-edge-toggle";
 import { UserSidebar } from "@/components/user/user-sidebar";
+import { useSessionGuard } from "@/hooks/use-session-guard";
 
 interface UserShellProps {
   children: React.ReactNode;
 }
 
 export function UserShell({ children }: UserShellProps) {
+  useSessionGuard("/login");
   const [collapsed, setCollapsed] = useState(false);
 
   const handleToggle = useCallback(() => {

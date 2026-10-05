@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import type { AuthUser } from "@/lib/types/auth";
 import { getRoleDestination } from "@/lib/types/auth";
 import { PasswordToggle } from "@/components/auth/password-toggle";
+import { markSessionActive } from "@/hooks/use-session-guard";
 
 const MAX_ATTEMPTS = 3;
 const COOLDOWN_SECONDS = 180;
@@ -133,6 +134,7 @@ export function AdminLoginForm() {
         return;
       }
 
+      markSessionActive();
       router.push(getRoleDestination(data.user.role));
       router.refresh();
     } catch {

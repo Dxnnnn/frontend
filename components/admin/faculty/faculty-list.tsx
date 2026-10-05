@@ -48,6 +48,8 @@ function EditFacultyModal({
     member.subjects ? member.subjects.split(",").map((s) => s.trim()).filter(Boolean) : []
   );
   const [semester, setSemester] = useState(member.semester ?? "");
+  const [profileImage, setProfileImage] = useState<string | null>(member.profile_image ?? null);
+  const [imageUploading, setImageUploading] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -77,6 +79,7 @@ function EditFacultyModal({
         department: department.trim(),
         subjects,
         semester: semester.trim() || null,
+        profile_image: profileImage ?? null,
       }),
     });
     setSaving(false);
@@ -100,6 +103,57 @@ function EditFacultyModal({
           </button>
         </div>
         <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Profile Photo */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-700">Profile Photo</label>
+            <div className="flex items-center gap-4">
+              {profileImage ? (
+                <img src={profileImage} alt="Profile" className="h-32 w-32 rounded-full object-cover border border-slate-200" />
+              ) : (
+                <div className="flex h-32 w-32 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-16 w-16" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                  </svg>
+                </div>
+              )}
+              <div className="flex flex-col gap-2">
+                <label className="cursor-pointer inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setImageUploading(true);
+                      try {
+                        const formData = new FormData();
+                        formData.append("file", file);
+                        const res = await fetch(
+                          `${process.env.NEXT_PUBLIC_API_URL}/api/upload/image`,
+                          { method: "POST", body: formData }
+                        );
+                        const data = await res.json() as { success?: boolean; url?: string; message?: string };
+                        if (data.success && data.url) setProfileImage(data.url);
+                        else setError(data.message ?? "Failed to upload image.");
+                      } catch {
+                        setError("Failed to upload image. Please try again.");
+                      } finally {
+                        setImageUploading(false);
+                      }
+                    }}
+                  />
+                  {imageUploading ? "Uploading..." : "Change Photo"}
+                </label>
+                {profileImage && (
+                  <button type="button" onClick={() => setProfileImage(null)}
+                    className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100">
+                    Remove photo
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5 sm:col-span-2">
               <label className="block text-sm font-medium text-slate-700">Full Name *</label>
