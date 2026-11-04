@@ -119,6 +119,10 @@ export interface FacultyPerformanceTableProps {
    * When true, only shows school head submissions (hides student evaluations).
    */
   schoolHeadOnly?: boolean;
+  /**
+   * When true, hides the Student/School Head source toggle.
+   */
+  hideSourceToggle?: boolean;
 }
 
 export function FacultyPerformanceTable({
@@ -126,22 +130,29 @@ export function FacultyPerformanceTable({
   reportBasePath = "/admin/reports",
   includeSchoolHead = false,
   schoolHeadOnly = false,
+  hideSourceToggle = false,
 }: FacultyPerformanceTableProps) {
   const router = useRouter();
   const [rows, setRows] = useState<FacultyRow[]>([]);
   const [search, setSearch] = useState("");
+  const [source, setSource] = useState<"student" | "school_head">(
+    schoolHeadOnly ? "school_head" : "student"
+  );
   const mounted = useIsClient();
 
   useEffect(() => {
     let cancelled = false;
 
     async function refresh() {
+      const isStudent = source === "student";
       const [studentSubs, shSubs] = await Promise.all([
-        schoolHeadOnly ? Promise.resolve([]) : getEvaluationSubmissionsAsync(),
-        includeSchoolHead ? getSchoolHeadSubmissionsAsync() : Promise.resolve([]),
+        (!schoolHeadOnly && isStudent) ? getEvaluationSubmissionsAsync() : Promise.resolve([]),
+        (includeSchoolHead || !isStudent) ? getSchoolHeadSubmissionsAsync() : Promise.resolve([]),
       ]);
       if (cancelled) return;
-      let all = [...studentSubs, ...shSubs];
+
+      // Filter by selected source
+      let all = isStudent ? studentSubs : shSubs;
 
       if (departmentFilter) {
         all = all.filter((s) => departmentMatches(s.department, departmentFilter));
@@ -157,7 +168,7 @@ export function FacultyPerformanceTable({
       cancelled = true;
       unsub();
     };
-  }, [departmentFilter, includeSchoolHead, schoolHeadOnly]);
+  }, [departmentFilter, includeSchoolHead, schoolHeadOnly, source]);
 
   const filtered = rows.filter((r) =>
     r.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -175,6 +186,48 @@ export function FacultyPerformanceTable({
 
   return (
     <div className="space-y-4">
+      {/* Source Toggle — only shown when not hideSourceToggle */}
+      {!hideSourceToggle && (
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">Reports for</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {source === "student"
+                ? "Showing faculty performance based on student evaluations."
+                : "Showing faculty performance based on school head evaluations."}
+            </p>
+          </div>
+
+          <div className="relative grid w-full max-w-xs grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 sm:shrink-0">
+            {/* sliding pill */}
+            <span
+              aria-hidden="true"
+              className={`pointer-events-none absolute bottom-1 top-1 rounded-lg bg-white shadow-sm transition-all duration-300 ease-in-out ${
+                source === "student"
+                  ? "left-1 right-[calc(50%+2px)]"
+                  : "left-[calc(50%+2px)] right-1"
+              }`}
+            />
+            {(["student", "school_head"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSource(s)}
+                className={`relative z-10 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors duration-300 ${
+                  source === s
+                    ? s === "student" ? "text-emerald-800" : "text-brand-800"
+                    : "text-slate-500 hover:text-slate-800"
+                }`}
+              >
+                {s === "student" ? "Student" : "School Head"}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+      )}
+
       {/* Search */}
       <div className="flex flex-wrap items-center gap-3">
         <input
@@ -265,7 +318,7 @@ export function FacultyPerformanceTable({
                     <td className="px-6 py-4 text-right">
                       <button
                         type="button"
-                        onClick={() => router.push(`${reportBasePath}/${row.id}`)}
+                        onClick={() => router.push(`${reportBasePath}/${row.id}${source === "school_head" ? "?source=school_head" : ""}`)}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-blue-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-800"
                       >
                         View Report

@@ -3,12 +3,13 @@
 import { useEffect } from "react";
 
 import { SurveyQuestionForm } from "@/components/admin/evaluations/survey-question-form";
-import type { QuestionSection, SurveyAudience } from "@/lib/types/survey-question";
-import { questionSectionLabels } from "@/lib/types/survey-question";
+import type { QuestionSection, SurveyAudience, StudentLevel } from "@/lib/types/survey-question";
+import { questionSectionLabels, studentLevelLabels } from "@/lib/types/survey-question";
 
 interface SurveyQuestionCreateModalProps {
   open: boolean;
   audience: SurveyAudience;
+  studentLevel: StudentLevel;
   section: QuestionSection;
   onClose: () => void;
   onCreated: () => void;
@@ -17,11 +18,14 @@ interface SurveyQuestionCreateModalProps {
 export function SurveyQuestionCreateModal({
   open,
   audience,
+  studentLevel,
   section,
   onClose,
   onCreated,
 }: SurveyQuestionCreateModalProps) {
-  const audienceLabel = audience === "student" ? "student" : "school head";
+  const audienceLabel = audience === "student"
+    ? `student (${studentLevelLabels[studentLevel]})`
+    : "school head";
   const sectionLabel = questionSectionLabels[section].toLowerCase();
 
   useEffect(() => {
@@ -109,8 +113,9 @@ export function SurveyQuestionCreateModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 sm:px-8">
           <SurveyQuestionForm
-            key={`${audience}-${section}`}
+            key={`${audience}-${studentLevel}-${section}`}
             audience={audience}
+            studentLevel={studentLevel}
             section={section}
             embedded
             onCreated={handleCreated}

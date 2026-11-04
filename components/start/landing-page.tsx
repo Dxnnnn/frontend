@@ -10,69 +10,33 @@ interface LandingPageProps {
 }
 
 const features = [
+  // ── Student Features ──
   {
-    color: "bg-blue-50 text-blue-700",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5a2 2 0 104 0M9 5a2 2 0 014 0M9 12h6M9 16h4" />
-      </svg>
-    ),
-    title: "Student Evaluations",
-    description: "Students submit structured feedback and personal responses for their faculty members each semester.",
+    badge: "Student",
+    title: "Student Dashboard",
+    description: "View your evaluation activity — see how many evaluations you've submitted, your average score given, and the teachers you've already evaluated.",
   },
   {
-    color: "bg-emerald-50 text-emerald-700",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-4-4h-1M9 20H2v-2a4 4 0 014-4h1a4 4 0 014 0v2z" />
-        <circle cx="9" cy="7" r="3" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M22 20v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
-      </svg>
-    ),
-    title: "School Head Oversight",
-    description: "School heads review faculty in their department, complete evaluations, and monitor performance.",
+    badge: "Student",
+    title: "Evaluation Form",
+    description: "Rate your assigned faculty members each semester using a structured scoring questionnaire. Submit evaluations for each subject and teacher.",
+  },
+
+  // ── School Head Features ──
+  {
+    badge: "School Head",
+    title: "School Head Dashboard",
+    description: "Track evaluation progress for your department — see how many teachers have been evaluated, how many are pending, and your overall completion rate.",
   },
   {
-    color: "bg-orange-50 text-orange-600",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 5.5h6v6H4zM14 5.5h6v6h-6zM4 14.5h6v6H4zM14 14.5h6v6h-6z" />
-      </svg>
-    ),
-    title: "Admin Management",
-    description: "Administrators manage accounts, configure questionnaires, maintain faculty records, and generate reports.",
+    badge: "School Head",
+    title: "Teachers",
+    description: "View all faculty members assigned to your department. See their profile, subjects, and evaluation status at a glance.",
   },
   {
-    color: "bg-blue-50 text-blue-700",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-      </svg>
-    ),
-    title: "Real-time Reports",
-    description: "Generate detailed evaluation reports by department, faculty, or semester with live data insights.",
-  },
-  {
-    color: "bg-emerald-50 text-emerald-700",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6" aria-hidden="true">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" />
-      </svg>
-    ),
-    title: "Semester Control",
-    description: "Admins open and close evaluation periods per semester, ensuring evaluations run on schedule.",
-  },
-  {
-    color: "bg-orange-50 text-orange-600",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6" aria-hidden="true">
-        <rect x="3" y="11" width="18" height="11" rx="2" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7 11V7a5 5 0 0110 0v4" />
-      </svg>
-    ),
-    title: "Secure Access",
-    description: "Role-based login for students, school heads, and administrators keeps your data safe and private.",
+    badge: "School Head",
+    title: "Reports",
+    description: "Access detailed faculty performance reports for your department. View scores, rankings, and evaluation summaries based on submitted evaluations.",
   },
 ];
 
@@ -183,40 +147,48 @@ export function LandingPage({ logoSrc }: LandingPageProps) {
             </div>
 
             {/* Trust badges */}
-            <div className="mt-12 flex flex-wrap items-center justify-center gap-8">
-              {[
-                { icon: "🎓", label: "For Students" },
-                { icon: "🏫", label: "For School Heads" },
-                { icon: "⚙️", label: "For Admins" },
-              ].map((b) => (
-                <div key={b.label} className="flex items-center gap-2 text-base text-slate-500">
-                  <span className="text-xl">{b.icon}</span>
-                  <span>{b.label}</span>
-                </div>
-              ))}
-            </div>
+  
           </div>
         </section>
 
-        {/* ── FEATURES ── */}
         <section id="features" className="bg-slate-50 px-4 py-20 sm:px-6 sm:py-24">
           <div className="mx-auto max-w-6xl">
             <div className="mb-12 text-center">
               <span className="inline-block rounded-full bg-blue-100 px-4 py-1 text-xs font-bold uppercase tracking-widest text-blue-700">Features</span>
-              <h2 className="mt-4 text-3xl font-extrabold text-slate-900 sm:text-4xl">Everything you need in one place</h2>
-              <p className="mt-3 text-sm text-slate-500 max-w-xl mx-auto">Built specifically for Benedicto College to streamline the teacher evaluation process from end to end.</p>
+              <h2 className="mt-4 text-3xl font-extrabold text-slate-900 sm:text-4xl">Built for every user</h2>
+              <p className="mt-3 text-sm text-slate-500 max-w-xl mx-auto">Each portal is designed around what the user actually needs — no clutter, no confusion.</p>
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {features.map((f) => (
-                <article key={f.title} className="group rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md hover:-translate-y-0.5">
-                  <div className={`mb-4 inline-flex h-11 w-11 items-center justify-center rounded-xl ${f.color}`}>
-                    {f.icon}
-                  </div>
-                  <h3 className="text-base font-bold text-slate-900">{f.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">{f.description}</p>
-                </article>
-              ))}
+            {/* Student features */}
+            <div className="mb-14">
+              <div className="mb-6 flex items-center gap-4">
+                <span className="text-lg font-bold text-slate-900">Student Portal</span>
+                <div className="h-px flex-1 bg-slate-200" />
+              </div>
+              <div className="grid gap-6 sm:grid-cols-2">
+                {features.filter((f) => f.badge === "Student").map((f) => (
+                  <article key={f.title} className="group rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition-all duration-200 hover:shadow-lg hover:-translate-y-1 hover:border-blue-300 hover:bg-blue-50/30">
+                    <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-700 transition-colors">{f.title}</h3>
+                    <p className="mt-3 text-base leading-7 text-slate-500">{f.description}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            {/* School Head features */}
+            <div>
+              <div className="mb-6 flex items-center gap-4">
+                <span className="text-lg font-bold text-slate-900">School Head Portal</span>
+                <div className="h-px flex-1 bg-slate-200" />
+              </div>
+              <div className="grid gap-6 sm:grid-cols-3">
+                {features.filter((f) => f.badge === "School Head").map((f) => (
+                  <article key={f.title} className="group rounded-2xl border border-slate-200 bg-white p-7 shadow-sm transition-all duration-200 hover:shadow-lg hover:-translate-y-1 hover:border-orange-300 hover:bg-orange-50/30">
+                    <h3 className="text-lg font-bold text-slate-900 group-hover:text-orange-700 transition-colors">{f.title}</h3>
+                    <p className="mt-3 text-sm leading-6 text-slate-500">{f.description}</p>
+                  </article>
+                ))}
+              </div>
             </div>
           </div>
         </section>

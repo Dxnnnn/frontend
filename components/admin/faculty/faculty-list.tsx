@@ -48,10 +48,22 @@ function EditFacultyModal({
     member.subjects ? member.subjects.split(",").map((s) => s.trim()).filter(Boolean) : []
   );
   const [semester, setSemester] = useState(member.semester ?? "");
+  const [dbSemesters, setDbSemesters] = useState<string[]>([]);
   const [profileImage, setProfileImage] = useState<string | null>(member.profile_image ?? null);
   const [imageUploading, setImageUploading] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Load active semesters from DB on mount
+  useEffect(() => {
+    fetch("/api/semesters/active", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: { semesters?: Array<{ schoolYear: string; term: string }> }) => {
+        const options = (d.semesters ?? []).map((s) => `SY-${s.schoolYear} ${s.term}`);
+        setDbSemesters(options);
+      })
+      .catch(() => setDbSemesters([]));
+  }, []);
 
   const inputCls = "w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100";
 
@@ -198,15 +210,21 @@ function EditFacultyModal({
               )}
             </div>
 
-            {/* Semester — only for SHS and College (Summer = College only) */}
+            {/* Semester — loaded from DB */}
             {!department.toLowerCase().includes("elementary") && (
             <div className="space-y-1.5 sm:col-span-2">
               <label className="block text-sm font-medium text-slate-700">Semester</label>
               <p className="text-xs text-slate-400">Leave blank if this faculty teaches all semesters.</p>
               <div className="flex flex-wrap gap-2 pt-1">
-                {(department.toLowerCase().includes("college")
-                  ? ["1st Semester", "2nd Semester", "Summer"]
-                  : ["1st Semester", "2nd Semester"]
+                {(dbSemesters.length > 0
+                  ? dbSemesters.filter((s) => {
+                      if (department.toLowerCase().includes("college")) return !s.includes("Quarter");
+                      if (department.toLowerCase().includes("senior") || department.toLowerCase().includes("junior")) return !s.includes("Summer") && !s.includes("Quarter");
+                      return s.includes("Quarter");
+                    })
+                  : department.toLowerCase().includes("college")
+                    ? ["1st Semester", "2nd Semester", "Summer"]
+                    : ["1st Semester", "2nd Semester"]
                 ).map((s) => (
                   <button
                     key={s}

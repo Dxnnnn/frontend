@@ -5,6 +5,7 @@ import { useState } from "react";
 import { AccountAudienceSwitch } from "@/components/admin/accounts/account-audience-switch";
 import { AccountCreateModal } from "@/components/admin/accounts/account-create-modal";
 import { AccountsList } from "@/components/admin/accounts/accounts-list";
+import { PasswordSuccessModal } from "@/components/admin/accounts/password-success-modal";
 import type { StudentLevel } from "@/lib/accounts/student-options";
 import type { AccountRole } from "@/lib/types/account";
 
@@ -13,11 +14,30 @@ export function AccountsPanel() {
   const [studentLevel, setStudentLevel] = useState<StudentLevel>("elementary");
   const [refreshKey, setRefreshKey] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    title: string;
+    name: string;
+    loginId: string;
+    password: string;
+    loginLabel: string;
+  } | null>(null);
 
   const isStudent = role === "user";
 
   return (
     <>
+      {/* Password modal lives here — persists after create modal closes */}
+      {successData && (
+        <PasswordSuccessModal
+          title={successData.title}
+          name={successData.name}
+          loginId={successData.loginId}
+          password={successData.password}
+          loginLabel={successData.loginLabel}
+          onClose={() => setSuccessData(null)}
+        />
+      )}
+
       <div className="space-y-6">
         <AccountAudienceSwitch audience={role} onChange={setRole} />
 
@@ -53,7 +73,11 @@ export function AccountsPanel() {
         studentLevel={studentLevel}
         onStudentLevelChange={setStudentLevel}
         onClose={() => setCreateOpen(false)}
-        onCreated={() => setRefreshKey((current) => current + 1)}
+        onCreated={(data) => {
+          setRefreshKey((current) => current + 1);
+          setCreateOpen(false);
+          setSuccessData(data);
+        }}
       />
     </>
   );

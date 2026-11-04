@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getSemestersAsync } from "@/lib/semester/storage";
+import { getActiveSemestersAsync } from "@/lib/semester/storage";
 import type { Semester } from "@/lib/types/semester";
 
 interface FacultyFormProps {
@@ -101,7 +101,7 @@ export function FacultyForm({ onCreated, embedded = false }: FacultyFormProps) {
 
   // Load semesters from DB on mount
   useEffect(() => {
-    void getSemestersAsync().then(setDbSemesters);
+    void getActiveSemestersAsync().then(setDbSemesters);
   }, []);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -145,22 +145,16 @@ export function FacultyForm({ onCreated, embedded = false }: FacultyFormProps) {
   function buildDepartmentLabel(): string {
     const parts: string[] = [];
 
-    if (hasElem && grades.length > 0 && sections.length > 0) {
-      parts.push(
-        `Elementary-Junior High School (Grade ${grades.join(", ")} - Section ${sections.join(", ")})`
-      );
+    if (hasElem) {
+      parts.push(`Elementary-Junior High School`);
     }
 
-    if (hasSHS && shsGrades.length > 0 && strands.length > 0 && shsSections.length > 0) {
-      parts.push(
-        `Senior High School (Grade ${shsGrades.join(", ")} - ${strands.join(", ")} - Section ${shsSections.join(", ")})`
-      );
+    if (hasSHS) {
+      parts.push(`Senior High School`);
     }
 
-    if (hasCollege && yearLevels.length > 0 && courses.length > 0 && collegeSections.length > 0) {
-      parts.push(
-        `College (${yearLevels.join(", ")} - ${courses.join(", ")} - Section ${collegeSections.join(", ")})`
-      );
+    if (hasCollege) {
+      parts.push(`College`);
     }
 
     return parts.join(" | ");
@@ -172,19 +166,6 @@ export function FacultyForm({ onCreated, embedded = false }: FacultyFormProps) {
 
     if (!name.trim() || departments.length === 0) {
       setError("Name and at least one department are required.");
-      return;
-    }
-
-    if (hasElem && (grades.length === 0 || sections.length === 0)) {
-      setError("Select grade and section for Elementary-Junior High School.");
-      return;
-    }
-    if (hasSHS && (shsGrades.length === 0 || strands.length === 0 || shsSections.length === 0)) {
-      setError("Select grade, strand, and section for Senior High School.");
-      return;
-    }
-    if (hasCollege && (yearLevels.length === 0 || courses.length === 0 || collegeSections.length === 0)) {
-      setError("Select year level, course, and section for College.");
       return;
     }
 
@@ -223,8 +204,7 @@ export function FacultyForm({ onCreated, embedded = false }: FacultyFormProps) {
       setShsGrades([]); setStrands([]); setShsSections([]);
       setYearLevels([]); setCourses([]); setCollegeSections([]);
       setSubjects([]); setSubjectInput("");
-      setSemesters([]);
-      onCreated();
+      setSemesters([]);      onCreated();
     } catch {
       setError("Unable to connect to the server.");
     } finally {
@@ -334,108 +314,18 @@ export function FacultyForm({ onCreated, embedded = false }: FacultyFormProps) {
 
         {/* Elementary / Junior High fields */}
         {hasElem && (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-brand-700">Elementary-Junior High School</p>
-            <MultiSelect
-              label="Grade"
-              options={GRADES_ELEM_JH}
-              selected={grades}
-              onToggle={(v) => setGrades((prev) => toggle(prev, v))}
-              formatLabel={(v) => `Grade ${v}`}
-            />
-            <MultiSelect
-              label="Section"
-              options={SECTIONS}
-              selected={sections}
-              onToggle={(v) => setSections((prev) => toggle(prev, v))}
-              formatLabel={(v) => `Section ${v}`}
-            />
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-brand-700">Elementary-Junior High School ✓</p>
           </div>
         )}
 
         {/* Senior High School fields */}
         {hasSHS && (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-brand-700">Senior High School</p>
-            <MultiSelect
-              label="Grade"
-              options={GRADES_SHS}
-              selected={shsGrades}
-              onToggle={(v) => setShsGrades((prev) => toggle(prev, v))}
-              formatLabel={(v) => `Grade ${v}`}
-            />
-            <MultiSelect
-              label="Strand"
-              options={SHS_STRANDS}
-              selected={strands}
-              onToggle={(v) => setStrands((prev) => toggle(prev, v))}
-            />
-            <MultiSelect
-              label="Section"
-              options={SECTIONS}
-              selected={shsSections}
-              onToggle={(v) => setShsSections((prev) => toggle(prev, v))}
-              formatLabel={(v) => `Section ${v}`}
-            />
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <p className="text-xs font-bold uppercase tracking-wider text-brand-700">Senior High School ✓</p>
           </div>
         )}
 
-        {/* College fields */}
-        {hasCollege && (
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-brand-700">College</p>
-            <MultiSelect
-              label="Year Level"
-              options={COLLEGE_YEAR_LEVELS}
-              selected={yearLevels}
-              onToggle={(v) => setYearLevels((prev) => toggle(prev, v))}
-            />
-            <MultiSelect
-              label="Course"
-              options={COLLEGE_COURSES}
-              selected={courses}
-              onToggle={(v) => setCourses((prev) => toggle(prev, v))}
-            />
-            <MultiSelect
-              label="Section"
-              options={SECTIONS}
-              selected={collegeSections}
-              onToggle={(v) => setCollegeSections((prev) => toggle(prev, v))}
-              formatLabel={(v) => `Section ${v}`}
-            />
-          </div>
-        )}
-
-        {/* Subjects */}
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-slate-700">Subjects</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={subjectInput}
-              onChange={(e) => setSubjectInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addSubject(); } }}
-              placeholder="Type a subject and press Enter or Add"
-              className={inputCls}
-            />
-            <button type="button" onClick={addSubject}
-              className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
-              Add
-            </button>
-          </div>
-          {subjects.length > 0 ? (
-            <div className="flex flex-wrap gap-2 pt-1">
-              {subjects.map((s) => (
-                <span key={s} className="inline-flex items-center gap-1.5 rounded-lg border border-brand-100 bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">
-                  {s}
-                  <button type="button" onClick={() => removeSubject(s)} className="text-brand-400 transition hover:text-brand-700" aria-label={`Remove ${s}`}>×</button>
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-slate-400">No subjects added yet.</p>
-          )}
-        </div>
 
         {/* Semester multi-select — only for SHS and College (Summer = College only) */}
         {showSemester && (

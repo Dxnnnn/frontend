@@ -4,6 +4,7 @@ import type {
   QuestionCategory,
   QuestionSection,
   QuestionStatus,
+  StudentLevel,
   SurveyAudience,
   SurveyQuestion,
 } from "@/lib/types/survey-question";
@@ -16,6 +17,7 @@ function normalizeQuestion(record: unknown, index: number): SurveyQuestion {
     id: q.id ?? crypto.randomUUID(),
     text: q.text ?? "",
     audience: q.audience ?? "student",
+    studentLevel: (q.studentLevel as StudentLevel) ?? "all",
     section: q.section ?? "scoring",
     category: (q.category as QuestionCategory) ?? "Other",
     evaluationType: (q.evaluationType as EvaluationType) ?? "rating",
@@ -46,9 +48,11 @@ export async function loadQuestions(): Promise<SurveyQuestion[]> {
 export async function getSurveyQuestionsAsync(
   audience: SurveyAudience,
   section?: QuestionSection,
+  studentLevel?: string,
 ): Promise<SurveyQuestion[]> {
   const params = new URLSearchParams({ audience });
   if (section) params.set("section", section);
+  if (studentLevel && studentLevel !== "all") params.set("student_level", studentLevel);
   const res = await fetch(`/api/survey-questions?${params}`, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to load questions.");
   const data = (await res.json()) as { questions?: SurveyQuestion[] };
@@ -82,6 +86,7 @@ export async function addSurveyQuestion(
       body: JSON.stringify({
         text: input.text.trim(),
         audience: input.audience,
+        studentLevel: input.studentLevel,
         section: input.section,
         category: input.category,
         evaluationType: input.evaluationType,
@@ -136,6 +141,7 @@ export async function duplicateSurveyQuestion(
   return addSurveyQuestion({
     text: `${original.text} (copy)`,
     audience: original.audience,
+    studentLevel: original.studentLevel ?? "all",
     section: original.section,
     category: original.category,
     evaluationType: original.evaluationType,
@@ -157,12 +163,12 @@ export async function reorderQuestions(orderedIds: string[]): Promise<boolean> {
   }
 }
 
-export async function publishQuestions(audience: SurveyAudience): Promise<boolean> {
+export async function publishQuestions(audience: SurveyAudience, studentLevel?: string): Promise<boolean> {
   try {
     const res = await fetch("/api/survey-questions/bulk-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ audience, status: "published", isActive: true }),
+      body: JSON.stringify({ audience, studentLevel, status: "published", isActive: true }),
     });
     return res.ok;
   } catch {
@@ -170,12 +176,12 @@ export async function publishQuestions(audience: SurveyAudience): Promise<boolea
   }
 }
 
-export async function saveAsDraft(audience: SurveyAudience): Promise<boolean> {
+export async function saveAsDraft(audience: SurveyAudience, studentLevel?: string): Promise<boolean> {
   try {
     const res = await fetch("/api/survey-questions/bulk-status", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ audience, status: "draft", isActive: false }),
+      body: JSON.stringify({ audience, studentLevel, status: "draft", isActive: false }),
     });
     return res.ok;
   } catch {
@@ -183,8 +189,8 @@ export async function saveAsDraft(audience: SurveyAudience): Promise<boolean> {
   }
 }
 
-export async function getQuestionStats(audience: SurveyAudience) {
-  const all = await getSurveyQuestionsAsync(audience);
+export async function getQuestionStats(audience: SurveyAudience, studentLevel?: string) {
+  const all = await getSurveyQuestionsAsync(audience, undefined, studentLevel);
   const active = all.filter((q) => q.isActive).length;
   const inactive = all.filter((q) => !q.isActive).length;
   const categories = new Set(all.map((q) => q.category)).size;
@@ -235,6 +241,7 @@ export async function importQuestionsCSV(
       id: crypto.randomUUID(),
       text,
       audience,
+      studentLevel: "all",
       section: (cols[2]?.trim() as QuestionSection) ?? "scoring",
       category: (cols[3]?.trim() as QuestionCategory) ?? "Other",
       evaluationType: (cols[4]?.trim() as EvaluationType) ?? "rating",

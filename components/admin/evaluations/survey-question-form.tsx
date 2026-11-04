@@ -10,10 +10,12 @@ import {
   type QuestionCategory,
   type QuestionSection,
   type SurveyAudience,
+  type StudentLevel,
 } from "@/lib/types/survey-question";
 
 interface SurveyQuestionFormProps {
   audience: SurveyAudience;
+  studentLevel: StudentLevel;
   section: QuestionSection;
   onCreated: () => void;
   embedded?: boolean;
@@ -24,6 +26,7 @@ const inputCls =
 
 export function SurveyQuestionForm({
   audience,
+  studentLevel,
   section,
   onCreated,
   embedded = false,
@@ -47,6 +50,7 @@ export function SurveyQuestionForm({
       const created = await addSurveyQuestion({
         text,
         audience,
+        studentLevel,
         section,
         category,
         evaluationType,

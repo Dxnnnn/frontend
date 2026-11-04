@@ -54,16 +54,6 @@ body {
   }
 }
 
-@keyframes evaluation-ticker {
-  from {
-    transform: translateX(0);
-  }
-
-  to {
-    transform: translateX(-50%);
-  }
-}
-
 .landing-shine-btn {
   position: relative;
   overflow: hidden;
@@ -86,37 +76,6 @@ body {
   pointer-events: none;
 }
 
-.evaluation-ticker-track {
-  display: flex;
-  width: max-content;
-  animation: evaluation-ticker 22s linear infinite;
-}
-
-.evaluation-ticker-track:hover {
-  animation-play-state: paused;
-}
-
-.evaluation-ticker-shine {
-  position: relative;
-  overflow: hidden;
-  isolation: isolate;
-}
-
-.evaluation-ticker-shine::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  width: 45%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.35),
-    transparent
-  );
-  transform: translateX(-180%) skewX(-20deg);
-  animation: button-shine 2.8s ease-in-out infinite;
-  pointer-events: none;
-}
 
 @media (prefers-reduced-motion: reduce) {
   .portal-content-enter {
@@ -124,14 +83,6 @@ body {
   }
 
   .landing-shine-btn::after {
-    animation: none;
-  }
-
-  .evaluation-ticker-track {
-    animation: none;
-  }
-
-  .evaluation-ticker-shine::after {
     animation: none;
   }
 }

@@ -3,10 +3,21 @@ import { getAuthHeaders } from "@/lib/server/auth-header";
 
 const BACKEND = process.env.BACKEND_URL ?? "http://localhost:5000";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const params = new URLSearchParams();
+    
+    // Pass through all query parameters to backend
+    searchParams.forEach((value, key) => {
+      params.set(key, value);
+    });
+    
+    const queryString = params.toString();
+    const url = `${BACKEND}/api/students${queryString ? `?${queryString}` : ""}`;
+    
     const headers = await getAuthHeaders();
-    const res = await fetch(`${BACKEND}/api/students`, { cache: "no-store", headers });
+    const res = await fetch(url, { cache: "no-store", headers });
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch {

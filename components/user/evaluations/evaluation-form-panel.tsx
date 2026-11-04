@@ -342,11 +342,36 @@ export function EvaluationFormPanel({
       try {
         const isJH = studentLevel === "junior-high";
         const isJHSchoolHead = departmentFilter && (departmentFilter.toLowerCase().includes("junior") || departmentFilter.toLowerCase().includes("elementary"));
-        const url = (isElemOrJH || isJH || isJHSchoolHead)
-          ? `/api/faculty?semester=All`
-          : `/api/faculty?semester=${encodeURIComponent(semester)}`;
+        
+        // Build query parameters based on student info
+        const params = new URLSearchParams();
+        params.set("student_level", studentLevel);
+        
+        if (studentLevel === "college") {
+          if (studentInfo.year_level) params.set("year_level", studentInfo.year_level);
+          if (studentInfo.course) params.set("course", studentInfo.course);
+          if (studentInfo.section) params.set("section", studentInfo.section);
+        } else if (studentLevel === "senior-high") {
+          if (studentInfo.grade) params.set("grade", studentInfo.grade);
+          if (studentInfo.strand) params.set("strand", studentInfo.strand);
+          if (studentInfo.section) params.set("section", studentInfo.section);
+        } else if (studentLevel === "junior-high") {
+          if (studentInfo.grade) params.set("grade", studentInfo.grade);
+          if (studentInfo.section) params.set("section", studentInfo.section);
+        }
+        
+        // Add semester filter
+        if (isElemOrJH || isJH || isJHSchoolHead) {
+          params.set("semester", "All");
+        } else {
+          params.set("semester", semester);
+        }
+        
+        // Use the new endpoint that filters by student criteria
+        const url = `/api/faculty/for-student?${params}`;
         const res = await fetch(url, { cache: "no-store" });
         const data = await res.json() as { success?: boolean; faculty?: Array<{ id: number; name: string; department: string; subjects: string; semester: string | null; is_active: number; created_at: string; profile_image?: string | null }> };
+        
         const backendFaculty: Faculty[] = (data.faculty ?? []).filter((f) => f.is_active !== 0).map((f) => ({
           id: String(f.id), name: f.name, department: f.department,
           subjects: f.subjects ? f.subjects.split(",").map((s) => s.trim()).filter(Boolean) : [],
@@ -354,46 +379,17 @@ export function EvaluationFormPanel({
           profile_image: f.profile_image ?? null,
         }));
 
-        let levelFiltered: Faculty[];
-        if (studentLevel === "senior-high" && studentInfo.grade) {
-          levelFiltered = backendFaculty.filter((m) => m.department.toLowerCase().includes("senior high") && m.department.toLowerCase().includes(studentInfo.grade.toLowerCase()));
-        } else if (studentLevel === "college") {
-          levelFiltered = backendFaculty.filter((m) => {
-            const dept = m.department.toLowerCase();
-            if (!dept.includes("college")) return false;
-            if (studentInfo.year_level && !dept.includes(studentInfo.year_level.toLowerCase())) return false;
-            if (studentInfo.course && !dept.includes(studentInfo.course.toLowerCase())) return false;
-            if (studentInfo.section && !dept.includes(`section ${studentInfo.section.toLowerCase()}`)) return false;
-            return true;
-          });
-        } else if (studentLevel === "junior-high") {
-          levelFiltered = backendFaculty.filter((m) => {
-            const dept = m.department.toLowerCase();
-            if (!dept.includes("junior") && !dept.includes("elementary")) return false;
-            if (studentInfo.grade && !dept.includes(studentInfo.grade.toLowerCase())) return false;
-            if (studentInfo.section && !dept.includes(`section ${studentInfo.section.toLowerCase()}`)) return false;
-            return true;
-          });
-        } else if (studentLevel === "elementary") {
-          levelFiltered = backendFaculty.filter((m) => {
-            const dept = m.department.toLowerCase();
-            if (!dept.includes("elementary")) return false;
-            if (studentInfo.grade && !dept.includes(studentInfo.grade.toLowerCase())) return false;
-            if (studentInfo.section && !dept.includes(`section ${studentInfo.section.toLowerCase()}`)) return false;
-            return true;
-          });
-        } else {
-          const kw = getDepartmentKeyword(studentLevel);
-          levelFiltered = kw ? backendFaculty.filter((m) => m.department.toLowerCase().includes(kw)) : backendFaculty;
-        }
-
-        setFaculty(departmentFilter ? levelFiltered.filter((m) => m.department.toLowerCase().includes(departmentFilter.toLowerCase())) : levelFiltered);
+        // Apply additional department filter if needed
+        setFaculty(departmentFilter ? backendFaculty.filter((m) => m.department.toLowerCase().includes(departmentFilter.toLowerCase())) : backendFaculty);
       } catch { setFaculty([]); }
-      const fetched = await getSurveyQuestionsAsync(audience, "scoring");
+
+      // Map student level to survey question level
+      const surveyLevel = studentLevel === "elementary" ? "junior-high" : studentLevel || "all";
+      const fetched = await getSurveyQuestionsAsync(audience, "scoring", surveyLevel);
       setScoringQuestions(fetched.filter((q) => q.isActive));
     }
     void load();
-  }, [audience, departmentFilter, semester, studentLevel, isElemOrJH, studentInfo.grade]);
+  }, [audience, departmentFilter, semester, studentLevel, isElemOrJH, studentInfo]);
 
   // "Done" — saves answers to memory only, marks row as locally done
   function handleSubmitClick(event: React.FormEvent<HTMLFormElement>) {

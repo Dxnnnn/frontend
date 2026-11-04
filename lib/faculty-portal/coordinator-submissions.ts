@@ -48,31 +48,28 @@ function normalizeSubmission(
 // ── Backend persistence ───────────────────────────────────────────────────────
 
 async function persistToBackend(submission: EvaluationSubmission): Promise<void> {
-  try {
-    const res = await fetch("/api/evaluations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: submission.id,
-        student_id: submission.studentId,
-        student_name: submission.studentName,
-        faculty_id: submission.facultyId,
-        faculty_name: submission.facultyName,
-        department: submission.department,
-        subject: submission.subject,
-        semester: submission.semester,
-        remarks: submission.remarks,
-        scoring_answers: submission.scoringAnswers,
-        personal_answers: submission.personalAnswers,
-        submitted_at: submission.submittedAt,
-        source: "school_head",
-      }),
-    });
-    if (!res.ok) {
-      console.warn("[school-head] Failed to persist submission:", await res.text());
-    }
-  } catch (err) {
-    console.warn("[school-head] Backend unreachable:", err);
+  const res = await fetch("/api/evaluations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      id: submission.id,
+      student_id: submission.studentId,
+      student_name: submission.studentName,
+      faculty_id: submission.facultyId,
+      faculty_name: submission.facultyName,
+      department: submission.department,
+      subject: submission.subject,
+      semester: submission.semester,
+      remarks: submission.remarks,
+      scoring_answers: submission.scoringAnswers,
+      personal_answers: submission.personalAnswers,
+      submitted_at: submission.submittedAt,
+      source: "school_head",
+    }),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({})) as { message?: string };
+    throw new Error(errData.message ?? `Server error ${res.status}`);
   }
 }
 

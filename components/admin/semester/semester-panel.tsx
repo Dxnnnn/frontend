@@ -18,9 +18,6 @@ export function SemesterPanel() {
               <h2 className="text-lg font-semibold text-slate-900">
                 School year & semester
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Manage semesters and the subjects graded in each term.
-              </p>
             </div>
 
             <button

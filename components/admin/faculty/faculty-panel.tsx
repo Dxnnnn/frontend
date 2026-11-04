@@ -15,12 +15,7 @@ export function FacultyPanel() {
         <section className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-slate-900">
-                Faculty members
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                View and manage faculty records by department and subjects.
-              </p>
+              <h2 className="text-lg font-semibold text-slate-900"></h2>
             </div>
 
             <button

@@ -10,6 +10,7 @@ export async function GET(request: Request) {
     if (searchParams.get("audience")) params.set("audience", searchParams.get("audience")!);
     if (searchParams.get("section")) params.set("section", searchParams.get("section")!);
     if (searchParams.get("active_only")) params.set("active_only", searchParams.get("active_only")!);
+    if (searchParams.get("student_level")) params.set("student_level", searchParams.get("student_level")!);
 
     const url = `${BACKEND}/api/survey-questions${params.toString() ? `?${params}` : ""}`;
     // GET questions is public — no auth header needed, but include if present

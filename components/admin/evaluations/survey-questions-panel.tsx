@@ -13,8 +13,8 @@ import {
   publishQuestions,
   saveAsDraft,
 } from "@/lib/evaluations/storage";
-import type { QuestionSection, SurveyAudience } from "@/lib/types/survey-question";
-import { questionSectionLabels } from "@/lib/types/survey-question";
+import type { QuestionSection, SurveyAudience, StudentLevel } from "@/lib/types/survey-question";
+import { questionSectionLabels, studentLevelLabels } from "@/lib/types/survey-question";
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
 interface Toast {
@@ -127,6 +127,7 @@ function PreviewModal({
 // ── Main panel ────────────────────────────────────────────────────────────────
 export function SurveyQuestionsPanel() {
   const [audience, setAudience] = useState<SurveyAudience>("student");
+  const [studentLevel, setStudentLevel] = useState<StudentLevel>("junior-high");
   const [section] = useState<QuestionSection>("scoring");
   const [refreshKey, setRefreshKey] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
@@ -149,14 +150,16 @@ export function SurveyQuestionsPanel() {
 
   useEffect(() => {
     void (async () => {
-      const stats = await getQuestionStats(audience);
+      const currentLevel = audience === "student" ? studentLevel : undefined;
+      const stats = await getQuestionStats(audience, currentLevel);
       setStats(stats);
     })();
-  }, [audience, refreshKey]);
+  }, [audience, studentLevel, refreshKey]);
 
   function handlePublish() {
     void (async () => {
-      const ok = await publishQuestions(audience);
+      const currentLevel = audience === "student" ? studentLevel : undefined;
+      const ok = await publishQuestions(audience, currentLevel);
       refresh();
       addToast(
         ok
@@ -169,7 +172,8 @@ export function SurveyQuestionsPanel() {
 
   function handleSaveDraft() {
     void (async () => {
-      const ok = await saveAsDraft(audience);
+      const currentLevel = audience === "student" ? studentLevel : undefined;
+      const ok = await saveAsDraft(audience, currentLevel);
       refresh();
       addToast(
         ok
@@ -226,6 +230,26 @@ export function SurveyQuestionsPanel() {
       <div className="space-y-6">
         {/* Audience switch only */}
         <QuestionnaireAudienceSwitch audience={audience} onChange={(a) => { setAudience(a); }} />
+
+        {/* Student level tabs — only shown when audience = student */}
+        {audience === "student" && (
+          <div className="flex gap-2 flex-wrap">
+            {(["junior-high", "senior-high", "college"] as StudentLevel[]).map((level) => (
+              <button
+                key={level}
+                type="button"
+                onClick={() => setStudentLevel(level)}
+                className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
+                  studentLevel === level
+                    ? "border-brand-500 bg-brand-700 text-white shadow-sm"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:bg-slate-50"
+                }`}
+              >
+                {studentLevelLabels[level]}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
@@ -319,6 +343,7 @@ export function SurveyQuestionsPanel() {
         {/* Questions list */}
         <SurveyQuestionsList
           audience={audience}
+          studentLevel={audience === "student" ? studentLevel : "all"}
           section={section}
           refreshKey={refreshKey}
           onRefresh={refresh}
@@ -330,6 +355,7 @@ export function SurveyQuestionsPanel() {
         <SurveyQuestionCreateModal
           open={createOpen}
           audience={audience}
+          studentLevel={audience === "student" ? studentLevel : "all"}
           section={section}
           onClose={() => setCreateOpen(false)}
           onCreated={() => {

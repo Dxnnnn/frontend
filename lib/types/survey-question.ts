@@ -1,5 +1,7 @@
 export type SurveyAudience = "student" | "school_head";
 
+export type StudentLevel = "all" | "junior-high" | "senior-high" | "college";
+
 export type QuestionSection = "scoring" | "personal";
 
 export type QuestionCategory =
@@ -18,6 +20,7 @@ export interface SurveyQuestion {
   id: string;
   text: string;
   audience: SurveyAudience;
+  studentLevel: StudentLevel;
   section: QuestionSection;
   category: QuestionCategory;
   evaluationType: EvaluationType;
@@ -32,6 +35,7 @@ export interface SurveyQuestion {
 export interface NewSurveyQuestion {
   text: string;
   audience: SurveyAudience;
+  studentLevel: StudentLevel;
   section: QuestionSection;
   category: QuestionCategory;
   evaluationType: EvaluationType;
@@ -71,6 +75,13 @@ export const evaluationTypeLabels: Record<EvaluationType, string> = {
   rating: "Rating (0–5)",
   essay: "Essay",
   yes_no: "Yes / No",
+};
+
+export const studentLevelLabels: Record<StudentLevel, string> = {
+  "all": "All Students",
+  "junior-high": "Junior High School",
+  "senior-high": "Senior High School",
+  "college": "College",
 };
 
 export const categoryColors: Record<QuestionCategory, string> = {

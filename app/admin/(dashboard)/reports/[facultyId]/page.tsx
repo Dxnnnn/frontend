@@ -1,9 +1,19 @@
 "use client";
 
 import { use } from "react";
+import { useSearchParams } from "next/navigation";
 import { FacultyDetailReport } from "@/components/admin/reports/faculty-detail-report";
 
 export default function FacultyReportPage({ params }: { params: Promise<{ facultyId: string }> }) {
   const { facultyId } = use(params);
-  return <FacultyDetailReport facultyId={facultyId} />;
+  const searchParams = useSearchParams();
+  const source = searchParams.get("source");
+  const includeSchoolHead = source === "school_head";
+
+  return (
+    <FacultyDetailReport
+      facultyId={facultyId}
+      includeSchoolHead={includeSchoolHead}
+    />
+  );
 }

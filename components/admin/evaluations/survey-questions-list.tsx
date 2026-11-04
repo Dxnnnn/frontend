@@ -23,6 +23,7 @@ import {
 
 interface SurveyQuestionsListProps {
   audience: SurveyAudience;
+  studentLevel: string;
   section: QuestionSection;
   refreshKey: number;
   onRefresh: () => void;
@@ -263,6 +264,7 @@ function QuestionCard({
 // ── Main list ─────────────────────────────────────────────────────────────────
 export function SurveyQuestionsList({
   audience,
+  studentLevel,
   section,
   refreshKey,
   onRefresh,
@@ -283,13 +285,20 @@ export function SurveyQuestionsList({
     void (async () => {
       const all = await loadQuestions();
       if (cancelled) return;
-      setQuestions(all.filter((q) => q.audience === audience && q.section === section));
+      setQuestions(all.filter((q) => {
+        if (q.audience !== audience) return false;
+        if (q.section !== section) return false;
+        if (audience === "student" && studentLevel !== "all") {
+          return q.studentLevel === studentLevel || q.studentLevel === "all";
+        }
+        return true;
+      }));
       setPage(1);
     })();
     return () => {
       cancelled = true;
     };
-  }, [audience, section, refreshKey]);
+  }, [audience, studentLevel, section, refreshKey]);
 
   // Filter + search
   let filtered = questions.filter((q) => {

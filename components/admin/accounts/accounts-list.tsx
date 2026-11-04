@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { PasswordSuccessModal } from "@/components/admin/accounts/password-success-modal";
 import {
   formatStudentDetails,
   getStudentLevelLabel,
@@ -39,8 +40,20 @@ interface Student {
   section: string | null;
   strand: string | null;
   course: string | null;
+  subjects: string | null;
   is_active: number;
   created_at: string;
+}
+
+interface Subject {
+  id: number;
+  name: string;
+  department: string;
+  year_level: string | null;
+  course: string | null;
+  grade: string | null;
+  strand: string | null;
+  faculty_name: string | null;
 }
 
 function formatDate(dateStr: string) {
@@ -183,14 +196,41 @@ function EditStudentModal({
   const [level] = useState(student.student_level);
   const [grade, setGrade] = useState(student.grade ?? "");
   const [yearLevel, setYearLevel] = useState(student.year_level ?? COLLEGE_YEAR_LEVELS[0]);
-  const [section, setSection] = useState(student.section ?? STUDENT_SECTIONS[0]);
+  const [section, setSection] = useState(student.section ?? "");
   const [strand, setStrand] = useState(student.strand ?? SENIOR_HIGH_STRANDS[0]);
   const [course, setCourse] = useState(student.course ?? COLLEGE_COURSES[0]);
+  // Multi-select: parse stored comma-separated IDs into number[]
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<number[]>(() =>
+    student.subjects
+      ? student.subjects.split(",").map(Number).filter(Boolean)
+      : []
+  );
+  const [availableSubjects, setAvailableSubjects] = useState<Subject[]>([]);
+  const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const gradeOptions = getGradesForLevel(level as Parameters<typeof getGradesForLevel>[0]);
   const isCollege = level === "college";
+
+  // Fetch ALL subjects regardless of student level
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      setLoadingSubjects(true);
+      try {
+        const res = await fetch("/api/subjects");
+        const data = await res.json() as { success?: boolean; subjects?: Subject[] };
+        if (data.success && data.subjects) {
+          setAvailableSubjects(data.subjects);
+        }
+      } catch {
+        setAvailableSubjects([]);
+      } finally {
+        setLoadingSubjects(false);
+      }
+    };
+    void fetchSubjects();
+  }, []);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -210,6 +250,7 @@ function EditStudentModal({
         year_level: isCollege ? yearLevel : null,
         section, strand: level === "senior-high" ? strand : null,
         course: isCollege ? course : null,
+        subjects: selectedSubjectIds,
       }),
     });
     setSaving(false);
@@ -274,9 +315,55 @@ function EditStudentModal({
           )}
           <div>
             <label className="block text-xs font-medium text-slate-700 mb-1">Section</label>
-            <select value={section} onChange={e => setSection(e.target.value)} className={inputCls}>
-              {STUDENT_SECTIONS.map(s => <option key={s} value={s}>Section {s}</option>)}
-            </select>
+            <input 
+              type="text" 
+              value={section} 
+              onChange={e => setSection(e.target.value)} 
+              className={inputCls}
+              placeholder="e.g. A, B, C"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-medium text-slate-700 mb-1">
+              Subjects
+              {selectedSubjectIds.length > 0 && (
+                <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-700">
+                  {selectedSubjectIds.length} selected
+                </span>
+              )}
+            </label>
+            {loadingSubjects ? (
+              <p className="text-xs text-slate-500 py-2">Loading subjects…</p>
+            ) : availableSubjects.length === 0 ? (
+              <p className="text-xs text-slate-400 py-2 italic">No subjects available for this level / course.</p>
+            ) : (
+              <div className="max-h-36 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
+                {availableSubjects.map(s => {
+                  const checked = selectedSubjectIds.includes(s.id);
+                  return (
+                    <label
+                      key={s.id}
+                      className={`flex cursor-pointer items-center gap-3 px-3 py-2 transition hover:bg-slate-50 ${checked ? "bg-brand-50" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 accent-brand-700"
+                        checked={checked}
+                        onChange={() =>
+                          setSelectedSubjectIds(prev =>
+                            checked ? prev.filter(id => id !== s.id) : [...prev, s.id]
+                          )
+                        }
+                      />
+                      <span className="flex-1 text-sm text-slate-800">{s.name}</span>
+                      {s.faculty_name && (
+                        <span className="text-xs text-slate-400">{s.faculty_name}</span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
           {error && <p className="sm:col-span-2 text-xs text-red-600">{error}</p>}
           <div className="sm:col-span-2 flex gap-2 pt-1">
@@ -296,6 +383,7 @@ function SchoolHeadList({ refreshKey }: { refreshKey: number }) {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [editTarget, setEditTarget] = useState<SchoolHead | null>(null);
+  const [resetData, setResetData] = useState<{ name: string; id: string; password: string } | null>(null);
 
   function loadData() {
     setLoading(true);
@@ -345,6 +433,17 @@ function SchoolHeadList({ refreshKey }: { refreshKey: number }) {
     }
   }
 
+  async function handleResetSH(sh: SchoolHead) {
+    if (!window.confirm(`Reset password for "${sh.full_name}"? A new password will be generated.`)) return;
+    const res = await fetch(`/api/school-heads/${sh.id}/reset-password`, { method: "PATCH" });
+    const data = await res.json() as { success?: boolean; generatedPassword?: string };
+    if (res.ok && data.success) {
+      setResetData({ name: sh.full_name, id: sh.id_number, password: data.generatedPassword ?? "" });
+    } else {
+      window.alert("Failed to reset password.");
+    }
+  }
+
   const filtered = schoolHeads.filter(sh =>
     search === "" ||
     sh.full_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -359,6 +458,16 @@ function SchoolHeadList({ refreshKey }: { refreshKey: number }) {
     <>
       {editTarget && (
         <EditSchoolHeadModal schoolHead={editTarget} onClose={() => setEditTarget(null)} onSaved={loadData} />
+      )}
+      {resetData && (
+        <PasswordSuccessModal
+          title="Password Reset!"
+          name={resetData.name}
+          loginId={resetData.id}
+          password={resetData.password}
+          loginLabel="ID#"
+          onClose={() => setResetData(null)}
+        />
       )}
       <section className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -400,11 +509,15 @@ function SchoolHeadList({ refreshKey }: { refreshKey: number }) {
                     <td className="px-6 py-4">{sh.department}</td>
                     <td className="px-6 py-4"><StatusBadge active={!!sh.is_active} /></td>
                     <td className="px-6 py-4">{formatDate(sh.created_at)}</td>
-                    <td className="px-6 py-4">
+                      <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <button type="button" onClick={() => setEditTarget(sh)}
                           className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50">
                           Edit
+                        </button>
+                        <button type="button" onClick={() => void handleResetSH(sh)}
+                          className="inline-flex items-center rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 transition hover:bg-brand-100">
+                          Reset PW
                         </button>
                         <button type="button" onClick={() => handleToggle(sh.id)}
                           className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
@@ -437,7 +550,9 @@ function StudentList({ refreshKey }: { refreshKey: number }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [levelFilter, setLevelFilter] = useState("");
   const [editTarget, setEditTarget] = useState<Student | null>(null);
+  const [resetData, setResetData] = useState<{ name: string; id: string; password: string } | null>(null);
 
   function loadData() {
     setLoading(true);
@@ -487,13 +602,27 @@ function StudentList({ refreshKey }: { refreshKey: number }) {
     }
   }
 
-  const filtered = students.filter(s =>
-    search === "" ||
-    `${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
-    s.student_id.toLowerCase().includes(search.toLowerCase()) ||
-    s.email.toLowerCase().includes(search.toLowerCase()) ||
-    s.student_level.toLowerCase().includes(search.toLowerCase())
-  );
+  async function handleResetStudent(s: Student) {
+    if (!window.confirm(`Reset password for "${s.first_name} ${s.last_name}"? A new password will be generated.`)) return;
+    const res = await fetch(`/api/students/${s.id}/reset-password`, { method: "PATCH" });
+    const data = await res.json() as { success?: boolean; generatedPassword?: string };
+    if (res.ok && data.success) {
+      setResetData({ name: `${s.first_name} ${s.last_name}`, id: s.student_id, password: data.generatedPassword ?? "" });
+    } else {
+      window.alert("Failed to reset password.");
+    }
+  }
+
+  const filtered = students.filter(s => {
+    const matchesSearch =
+      search === "" ||
+      `${s.first_name} ${s.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
+      s.student_id.toLowerCase().includes(search.toLowerCase()) ||
+      s.email.toLowerCase().includes(search.toLowerCase()) ||
+      s.student_level.toLowerCase().includes(search.toLowerCase());
+    const matchesLevel = levelFilter === "" || s.student_level === levelFilter;
+    return matchesSearch && matchesLevel;
+  });
 
   if (loading) return <LoadingState />;
   if (error) return <ErrorState message={error} />;
@@ -503,25 +632,60 @@ function StudentList({ refreshKey }: { refreshKey: number }) {
       {editTarget && (
         <EditStudentModal student={editTarget} onClose={() => setEditTarget(null)} onSaved={loadData} />
       )}
+      {resetData && (
+        <PasswordSuccessModal
+          title="Password Reset!"
+          name={resetData.name}
+          loginId={resetData.id}
+          password={resetData.password}
+          loginLabel="Student ID"
+          onClose={() => setResetData(null)}
+        />
+      )}
       <section className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-500">
             {filtered.length} of {students.length} account{students.length === 1 ? "" : "s"}
           </p>
-          <div className="relative">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true">
-              <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
-            </svg>
-            <input
-              type="text" value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search name, ID, email..."
-              className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100 sm:w-60"
-            />
+          <div className="flex items-center gap-2">
+            {/* Level filter dropdown */}
+            <div className="relative">
+              <select
+                value={levelFilter}
+                onChange={e => setLevelFilter(e.target.value)}
+                className="h-9 appearance-none rounded-xl border border-slate-200 bg-white py-0 pl-3 pr-8 text-sm text-slate-700 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+                aria-label="Filter by student level"
+              >
+                <option value="">All levels</option>
+                <option value="junior-high">Junior High</option>
+                <option value="senior-high">Senior High</option>
+                <option value="college">College</option>
+              </select>
+              {/* chevron icon */}
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+              {/* active indicator dot */}
+              {levelFilter !== "" && (
+                <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-brand-600" aria-hidden="true" />
+              )}
+            </div>
+            {/* Search input */}
+            <div className="relative">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true">
+                <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35" />
+              </svg>
+              <input
+                type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Search name, ID, email..."
+                className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm text-slate-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100 sm:w-60"
+              />
+            </div>
           </div>
         </div>
 
         {filtered.length === 0 ? (
-          <EmptyState label="student" filtered={search !== ""} />
+          <EmptyState label="student" filtered={search !== "" || levelFilter !== ""} />
         ) : (
           <div className="max-h-96 overflow-y-auto overflow-x-auto">
             <table className="min-w-full text-left text-sm">
@@ -556,6 +720,10 @@ function StudentList({ refreshKey }: { refreshKey: number }) {
                         <button type="button" onClick={() => setEditTarget(s)}
                           className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50">
                           Edit
+                        </button>
+                        <button type="button" onClick={() => void handleResetStudent(s)}
+                          className="inline-flex items-center rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 transition hover:bg-brand-100">
+                          Reset PW
                         </button>
                         <button type="button" onClick={() => handleToggle(s.id)}
                           className={`inline-flex items-center rounded-lg border px-3 py-1.5 text-xs font-medium transition ${

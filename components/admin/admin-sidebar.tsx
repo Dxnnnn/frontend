@@ -41,7 +41,7 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
         {!collapsed ? (
           <div className="mt-3 text-center">
             <p className="text-sm font-bold tracking-wide text-white">Benedicto College</p>
-            <p className="mt-0.5 text-xs font-medium text-yellow-400">Admin Portal</p>
+            <p className="mt-0.5 text-xs font-medium text-yellow-400">Super Admin Portal</p>
           </div>
         ) : null}
       </div>

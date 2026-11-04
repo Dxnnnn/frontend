@@ -1,26 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { PasswordToggle } from "@/components/auth/password-toggle";
 import {
   COLLEGE_COURSES,
   COLLEGE_YEAR_LEVELS,
   SENIOR_HIGH_STRANDS,
   STUDENT_LEVEL_OPTIONS,
-  STUDENT_SECTIONS,
   getGradesForLevel,
   type StudentLevel,
 } from "@/lib/accounts/student-options";
 
 interface StudentAccountFormProps {
   level: StudentLevel;
-  onCreated: () => void;
+  onCreated: (data: { title: string; name: string; loginId: string; password: string; loginLabel: string }) => void;
   embedded?: boolean;
+}
+
+interface SubjectOption {
+  id: number;
+  name: string;
+  facultyName: string | null;
 }
 
 const inputClassName =
   "w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100";
+
+// Map student level to subjects department
+function subjectDept(level: StudentLevel): string {
+  if (level === "college") return "college";
+  if (level === "senior-high") return "senior-high";
+  return "junior-high";
+}
 
 export function StudentAccountForm({
   level,
@@ -33,22 +44,33 @@ export function StudentAccountForm({
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [grade, setGrade] = useState(gradeOptions[0] ?? "");
   const [yearLevel, setYearLevel] = useState<(typeof COLLEGE_YEAR_LEVELS)[number]>(
     COLLEGE_YEAR_LEVELS[0],
   );
-  const [section, setSection] = useState<(typeof STUDENT_SECTIONS)[number]>(
-    STUDENT_SECTIONS[0],
-  );
+  const [section, setSection] = useState("");
   const [strand, setStrand] = useState<(typeof SENIOR_HIGH_STRANDS)[number]>(
     SENIOR_HIGH_STRANDS[0],
   );
   const [course, setCourse] = useState<(typeof COLLEGE_COURSES)[number]>(
     COLLEGE_COURSES[0],
   );
-  const [showPassword, setShowPassword] = useState(false);
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Load subjects with assigned teachers for this student level
+  useEffect(() => {
+    fetch(`/api/subjects?department=${subjectDept(level)}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: { subjects?: Array<{ id: number; name: string; facultyName: string | null }> }) => {
+        // Only show subjects that have an assigned teacher
+        const withTeacher = (d.subjects ?? []).filter((s) => !!s.facultyName);
+        setSubjectOptions(withTeacher);
+      })
+      .catch(() => setSubjectOptions([]));
+  }, [level]);
 
   const createLabel =
     STUDENT_LEVEL_OPTIONS.find((option) => option.id === level)?.createLabel ??
@@ -59,12 +81,12 @@ export function StudentAccountForm({
     setLastName("");
     setUsername("");
     setEmail("");
-    setPassword("");
     setGrade(gradeOptions[0] ?? "");
     setYearLevel(COLLEGE_YEAR_LEVELS[0]);
-    setSection(STUDENT_SECTIONS[0]);
+    setSection("");
     setStrand(SENIOR_HIGH_STRANDS[0]);
     setCourse(COLLEGE_COURSES[0]);
+    setSubjects([]);
     setError("");
   }
 
@@ -72,8 +94,8 @@ export function StudentAccountForm({
     event.preventDefault();
     setError("");
 
-    if (!firstName.trim() || !lastName.trim() || !username.trim() || !email.trim() || !password || !section) {
-      setError("Student ID, name, email, password, and section are required.");
+    if (!firstName.trim() || !lastName.trim() || !username.trim() || !email.trim() || !section) {
+      setError("Student ID, name, email, and section are required.");
       return;
     }
 
@@ -98,25 +120,32 @@ export function StudentAccountForm({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           email: email.trim(),
-          password,
           student_level: level,
           grade: level === "college" ? null : grade,
           year_level: level === "college" ? yearLevel : null,
           section,
           strand: level === "senior-high" ? strand : null,
           course: level === "college" ? course : null,
+          subjects: subjects.length > 0 ? subjects : null,
         }),
       });
 
-      const data = (await res.json()) as { success?: boolean; message?: string };
+      const data = (await res.json()) as { success?: boolean; message?: string; generatedPassword?: string; student?: { first_name: string; last_name: string; student_id: string } };
 
       if (!res.ok || !data.success) {
         setError(data.message ?? "Failed to create student.");
         return;
       }
 
+      // Pass generated password up so it shows in the panel-level modal
       resetForm();
-      onCreated();
+      onCreated({
+        title: "Student Account Created!",
+        name: `${firstName.trim()} ${lastName.trim()}`,
+        loginId: username.trim(),
+        password: data.generatedPassword ?? "",
+        loginLabel: "Student ID",
+      });
     } catch {
       setError("Unable to connect to the server.");
     } finally {
@@ -125,6 +154,7 @@ export function StudentAccountForm({
   }
 
   return (
+    <>
     <form
       onSubmit={handleSubmit}
       className={
@@ -208,30 +238,6 @@ export function StudentAccountForm({
             className={inputClassName}
             required
           />
-        </div>
-
-        <div className="space-y-2 sm:col-span-2">
-          <label
-            htmlFor="student-password"
-            className="block text-sm font-medium text-slate-700"
-          >
-            Password
-          </label>
-          <div className="relative">
-            <input
-              id="student-password"
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Enter password"
-              className={`${inputClassName} pr-12`}
-              required
-            />
-            <PasswordToggle
-              showPassword={showPassword}
-              onToggle={() => setShowPassword((current) => !current)}
-            />
-          </div>
         </div>
 
         {level === "college" ? (
@@ -343,21 +349,72 @@ export function StudentAccountForm({
           >
             Section
           </label>
-          <select
+          <input
             id="student-section"
+            type="text"
             value={section}
-            onChange={(event) =>
-              setSection(event.target.value as (typeof STUDENT_SECTIONS)[number])
-            }
+            onChange={(event) => setSection(event.target.value)}
+            placeholder="e.g. A, B, Rizal, Bonifacio"
             className={inputClassName}
             required
-          >
-            {STUDENT_SECTIONS.map((option) => (
-              <option key={option} value={option}>
-                Section {option}
-              </option>
-            ))}
-          </select>
+          />
+        </div>
+
+        <div className="space-y-2 sm:col-span-2">
+          <label className="block text-sm font-medium text-slate-700">
+            Subjects
+          </label>
+          {subjectOptions.length === 0 ? (
+            <p className="text-xs text-slate-400">
+              No subjects with assigned teachers found. Add subjects in the Subjects page first.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {subjectOptions.map((s) => {
+                const isSelected = subjects.includes(s.name);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() =>
+                      setSubjects((prev) =>
+                        prev.includes(s.name)
+                          ? prev.filter((x) => x !== s.name)
+                          : [...prev, s.name]
+                      )
+                    }
+                    className={`flex flex-col rounded-xl border px-3 py-2 text-left text-xs transition ${
+                      isSelected
+                        ? "border-brand-500 bg-brand-700 text-white"
+                        : "border-slate-200 bg-white text-slate-700 hover:border-brand-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span className="font-semibold">{s.name}</span>
+                    {s.facultyName && (
+                      <span className={`mt-0.5 ${isSelected ? "text-brand-200" : "text-slate-400"}`}>
+                        {s.facultyName}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {subjects.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {subjects.map((s) => (
+                <span key={s} className="inline-flex items-center gap-1 rounded-lg border border-brand-100 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700">
+                  {s}
+                  <button
+                    type="button"
+                    onClick={() => setSubjects((prev) => prev.filter((x) => x !== s))}
+                    className="text-brand-400 hover:text-brand-700"
+                    aria-label={`Remove ${s}`}
+                  >×</button>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -375,5 +432,6 @@ export function StudentAccountForm({
         {isSubmitting ? "Saving..." : "Save"}
       </button>
     </form>
+    </>
   );
 }

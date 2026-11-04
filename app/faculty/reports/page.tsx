@@ -20,6 +20,7 @@ export default async function FacultyReportsPage() {
           reportBasePath="/faculty/reports"
           includeSchoolHead
           schoolHeadOnly
+          hideSourceToggle
         />
       </main>
     </div>

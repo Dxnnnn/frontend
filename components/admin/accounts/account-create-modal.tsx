@@ -17,7 +17,7 @@ interface AccountCreateModalProps {
   studentLevel: StudentLevel;
   onStudentLevelChange: (level: StudentLevel) => void;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (data: { title: string; name: string; loginId: string; password: string; loginLabel: string }) => void;
 }
 
 export function AccountCreateModal({
@@ -58,9 +58,8 @@ export function AccountCreateModal({
     return null;
   }
 
-  function handleCreated() {
-    onCreated();
-    onClose();
+  function handleCreated(data: { title: string; name: string; loginId: string; password: string; loginLabel: string }) {
+    onCreated(data);
   }
 
   return (
