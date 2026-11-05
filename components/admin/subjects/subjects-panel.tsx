@@ -32,6 +32,9 @@ interface Subject {
   grade: string | null;
   strand: string | null;
   section: string | null;
+  roomNo: string | null;
+  scheduleDay: string | null;
+  scheduleTime: string | null;
   facultyId: number | null;
   facultyName: string | null;
   createdAt: string;
@@ -115,6 +118,63 @@ function Tags({ value, color = "slate" }: { value: string | null; color?: string
   );
 }
 
+// ── Section Picker ────────────────────────────────────────────────────────────
+function SectionPicker({
+  sections,
+  selected,
+  loading,
+  onToggle,
+  emptyMsg,
+  required,
+}: {
+  sections: string[];
+  selected: string[];
+  loading: boolean;
+  onToggle: (s: string) => void;
+  emptyMsg: string;
+  required?: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <p className="block text-sm font-medium text-slate-700">
+        Section{" "}
+        {required ? (
+          <span className="text-red-500">*</span>
+        ) : (
+          <span className="text-xs font-normal text-slate-400">(optional)</span>
+        )}
+        {selected.length > 0 && (
+          <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-700">
+            {selected.length} selected
+          </span>
+        )}
+      </p>
+      {loading ? (
+        <p className="text-xs text-slate-400">Loading sections…</p>
+      ) : sections.length === 0 ? (
+        <p className="text-xs text-slate-400 italic">{emptyMsg}</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {sections.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => onToggle(s)}
+              className={`rounded-xl border px-4 py-2 text-sm font-semibold transition ${
+                selected.includes(s)
+                  ? "border-brand-500 bg-brand-700 text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-brand-300 hover:text-brand-700"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Create / Edit Modal ───────────────────────────────────────────────────────
 function SubjectModal({
   subject,
@@ -141,10 +201,18 @@ function SubjectModal({
   const [strands, setStrands] = useState<string[]>(
     subject?.strand ? subject.strand.split(",").map((v) => v.trim()).filter(Boolean) : []
   );
-  const [section, setSection] = useState(subject?.section ?? "");
   const [facultyId, setFacultyId] = useState<number | null>(subject?.facultyId ?? null);
   const [facultyName, setFacultyName] = useState(subject?.facultyName ?? "");
   const [faculty, setFaculty] = useState<FacultyOption[]>([]);
+  const [availableSections, setAvailableSections] = useState<string[]>([]);
+  const [selectedSections, setSelectedSections] = useState<string[]>(
+    subject?.section ? subject.section.split(",").map((s) => s.trim()).filter(Boolean) : []
+  );
+  const [loadingSections, setLoadingSections] = useState(false);
+  // Room & schedule — college only
+  const [roomNo, setRoomNo] = useState(subject?.roomNo ?? "");
+  const [scheduleDay, setScheduleDay] = useState(subject?.scheduleDay ?? "");
+  const [scheduleTime, setScheduleTime] = useState(subject?.scheduleTime ?? "");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -154,6 +222,59 @@ function SubjectModal({
       .then((d: { faculty?: Array<{ id: number; name: string }> }) => setFaculty(d.faculty ?? []))
       .catch(() => setFaculty([]));
   }, [dept]);
+
+  // Fetch available sections from students matching selected grade/year level
+  useEffect(() => {
+    const fetchSections = async () => {
+      setLoadingSections(true);
+      try {
+        const allSections = new Set<string>();
+
+        if (dept === "junior-high" && grades.length > 0) {
+          // Fetch sections for each selected grade
+          await Promise.all(
+            grades.map(async (g) => {
+              const res = await fetch(`/api/students?student_level=junior-high&grade=${g}`, { cache: "no-store" });
+              const data = await res.json() as { students?: Array<{ section: string | null }> };
+              (data.students ?? []).forEach((s) => {
+                if (s.section?.trim()) allSections.add(s.section.trim());
+              });
+            })
+          );
+        } else if (dept === "senior-high" && grades.length > 0) {
+          await Promise.all(
+            grades.map(async (g) => {
+              const res = await fetch(`/api/students?student_level=senior-high&grade=${g}`, { cache: "no-store" });
+              const data = await res.json() as { students?: Array<{ section: string | null }> };
+              (data.students ?? []).forEach((s) => {
+                if (s.section?.trim()) allSections.add(s.section.trim());
+              });
+            })
+          );
+        } else if (dept === "college") {
+          const params = new URLSearchParams({ student_level: "college" });
+          if (yearLevel) params.set("year_level", yearLevel);
+          if (courses.length === 1) params.set("course", courses[0]);
+          const res = await fetch(`/api/students?${params}`, { cache: "no-store" });
+          const data = await res.json() as { students?: Array<{ section: string | null }> };
+          (data.students ?? []).forEach((s) => {
+            if (s.section?.trim()) allSections.add(s.section.trim());
+          });
+        }
+
+        const sorted = [...allSections].sort();
+        setAvailableSections(sorted);
+        // Remove any selected sections that no longer exist for the new grade
+        setSelectedSections((prev) => prev.filter((s) => sorted.includes(s)));
+      } catch {
+        setAvailableSections([]);
+      } finally {
+        setLoadingSections(false);
+      }
+    };
+
+    void fetchSections();
+  }, [dept, grades, yearLevel, courses]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -166,6 +287,10 @@ function SubjectModal({
     setError("");
     if (!name.trim()) { setError("Subject name is required."); return; }
     if (dept === "college" && courses.length === 0) { setError("Select at least one course."); return; }
+    if (dept === "college" && selectedSections.length === 0) { setError("Section is required for college subjects."); return; }
+    if (dept === "college" && !roomNo.trim()) { setError("Room No. is required for college subjects."); return; }
+    if (dept === "college" && !scheduleDay.trim()) { setError("Schedule Day is required for college subjects."); return; }
+    if (dept === "college" && !scheduleTime.trim()) { setError("Schedule Time is required for college subjects."); return; }
     if ((dept === "junior-high" || dept === "senior-high") && grades.length === 0) { setError("Select at least one grade."); return; }
     if (dept === "senior-high" && strands.length === 0) { setError("Select at least one strand."); return; }
 
@@ -182,7 +307,10 @@ function SubjectModal({
           course: dept === "college" ? courses.join(",") : null,
           grade: dept !== "college" ? grades.join(",") : null,
           strand: dept === "senior-high" ? strands.join(",") : null,
-          section: section || null, // Send section for all departments
+          section: selectedSections.length > 0 ? selectedSections.join(",") : null,
+          roomNo: dept === "college" ? (roomNo.trim() || null) : null,
+          scheduleDay: dept === "college" ? (scheduleDay.trim() || null) : null,
+          scheduleTime: dept === "college" ? (scheduleTime.trim() || null) : null,
           facultyId,
           facultyName: facultyName || null,
         }),
@@ -236,11 +364,30 @@ function SubjectModal({
               </div>
               <MultiChips label="Course" options={COURSES} selected={courses}
                 onToggle={(v) => setCourses((prev) => toggleArr(prev, v))} required />
-
+              <SectionPicker
+                sections={availableSections}
+                selected={selectedSections}
+                loading={loadingSections}
+                onToggle={(s) => setSelectedSections((prev) => toggleArr(prev, s))}
+                emptyMsg="No sections found for this year level / course."
+                required
+              />
               <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-700">Section <span className="text-xs text-slate-400">(optional)</span></label>
-                <input type="text" value={section} onChange={(e) => setSection(e.target.value)}
-                  placeholder="e.g. A, Rizal, IT-A" className={inputCls} />
+                <label className="block text-sm font-medium text-slate-700">Room No. <span className="text-red-500">*</span></label>
+                <input type="text" value={roomNo} onChange={(e) => setRoomNo(e.target.value)}
+                  placeholder="e.g. Room 301, Lab 2" className={inputCls} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-slate-700">Schedule Day <span className="text-red-500">*</span></label>
+                  <input type="text" value={scheduleDay} onChange={(e) => setScheduleDay(e.target.value)}
+                    placeholder="e.g. MWF, TTh" className={inputCls} />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-slate-700">Schedule Time <span className="text-red-500">*</span></label>
+                  <input type="text" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)}
+                    placeholder="e.g. 8:00–9:30 AM" className={inputCls} />
+                </div>
               </div>
             </>
           )}
@@ -253,12 +400,13 @@ function SubjectModal({
                 formatLabel={(v) => `Grade ${v}`} required />
               <MultiChips label="Strand" options={STRANDS} selected={strands}
                 onToggle={(v) => setStrands((prev) => toggleArr(prev, v))} required />
-
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-700">Section <span className="text-xs text-slate-400">(optional)</span></label>
-                <input type="text" value={section} onChange={(e) => setSection(e.target.value)}
-                  placeholder="e.g. A, Rizal" className={inputCls} />
-              </div>
+              <SectionPicker
+                sections={availableSections}
+                selected={selectedSections}
+                loading={loadingSections}
+                onToggle={(s) => setSelectedSections((prev) => toggleArr(prev, s))}
+                emptyMsg="No sections found for the selected grade(s)."
+              />
             </>
           )}
 
@@ -268,12 +416,13 @@ function SubjectModal({
               <MultiChips label="Grade" options={GRADES_JH} selected={grades}
                 onToggle={(v) => setGrades((prev) => toggleArr(prev, v))}
                 formatLabel={(v) => `Grade ${v}`} required />
-
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-slate-700">Section <span className="text-xs text-slate-400">(optional)</span></label>
-                <input type="text" value={section} onChange={(e) => setSection(e.target.value)}
-                  placeholder="e.g. A, Bonifacio" className={inputCls} />
-              </div>
+              <SectionPicker
+                sections={availableSections}
+                selected={selectedSections}
+                loading={loadingSections}
+                onToggle={(s) => setSelectedSections((prev) => toggleArr(prev, s))}
+                emptyMsg="No sections found for the selected grade(s)."
+              />
             </>
           )}
 
@@ -362,10 +511,10 @@ export function SubjectsPanel() {
 
   // Table columns per department
   const extraCols = activeDept === "college"
-    ? ["Year Level", "Course"]
+    ? ["Year Level", "Course", "Section", "Room No.", "Schedule"]
     : activeDept === "senior-high"
-    ? ["Grade", "Strand"]
-    : ["Grade"];
+    ? ["Grade", "Strand", "Section"]
+    : ["Grade", "Section"];
 
   return (
     <>
@@ -471,27 +620,41 @@ export function SubjectsPanel() {
               <table className="min-w-full text-left text-sm">
                 <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="px-6 py-3 font-medium">Subject Name</th>
-                    {extraCols.map((col) => <th key={col} className="px-6 py-3 font-medium">{col}</th>)}
-                    <th className="px-6 py-3 font-medium">Assigned Teacher</th>
-                    <th className="px-6 py-3 font-medium">Added</th>
-                    <th className="px-6 py-3 font-medium">Actions</th>
+                    <th className="px-6 py-3.5 font-medium">Subject Name</th>
+                    {extraCols.map((col) => <th key={col} className="px-6 py-3.5 font-medium">{col}</th>)}
+                    <th className="px-6 py-3.5 font-medium">Assigned Teacher</th>
+                    <th className="px-6 py-3.5 font-medium">Added</th>
+                    <th className="px-6 py-3.5 font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filtered.map((s) => (
                     <tr key={s.id} className="text-slate-700 hover:bg-slate-50 transition">
-                      <td className="px-6 py-4 font-medium text-slate-900">{s.name}</td>
+                      <td className="px-6 py-4 font-semibold text-slate-900 text-sm">{s.name}</td>
 
                       {/* College */}
                       {activeDept === "college" && (
                         <>
                           <td className="px-6 py-4">
-                            <span className="inline-block rounded-full bg-brand-50 border border-brand-100 px-2.5 py-0.5 text-xs font-medium text-brand-700">
+                            <span className="inline-block rounded-full bg-brand-50 border border-brand-100 px-3 py-1 text-xs font-semibold text-brand-700">
                               {s.yearLevel ?? "—"}
                             </span>
                           </td>
                           <td className="px-6 py-4"><Tags value={s.course} color="slate" /></td>
+                          <td className="px-6 py-4"><Tags value={s.section} color="brand" /></td>
+                          <td className="px-6 py-4">
+                            {s.roomNo ? (
+                              <span className="inline-block rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{s.roomNo}</span>
+                            ) : <span className="text-xs text-slate-400">—</span>}
+                          </td>
+                          <td className="px-6 py-4">
+                            {s.scheduleDay || s.scheduleTime ? (
+                              <div className="flex flex-col gap-0.5">
+                                {s.scheduleDay && <span className="text-xs font-semibold text-slate-700">{s.scheduleDay}</span>}
+                                {s.scheduleTime && <span className="text-xs text-slate-500">{s.scheduleTime}</span>}
+                              </div>
+                            ) : <span className="text-xs text-slate-400">—</span>}
+                          </td>
                         </>
                       )}
 
@@ -502,37 +665,41 @@ export function SubjectsPanel() {
                             <Tags value={s.grade ? s.grade.split(",").map((g) => `Grade ${g.trim()}`).join(",") : null} color="brand" />
                           </td>
                           <td className="px-6 py-4"><Tags value={s.strand} color="violet" /></td>
+                          <td className="px-6 py-4"><Tags value={s.section} color="brand" /></td>
                         </>
                       )}
 
                       {/* JHS */}
                       {activeDept === "junior-high" && (
-                        <td className="px-6 py-4">
-                          <Tags value={s.grade ? s.grade.split(",").map((g) => `Grade ${g.trim()}`).join(",") : null} color="emerald" />
-                        </td>
+                        <>
+                          <td className="px-6 py-4">
+                            <Tags value={s.grade ? s.grade.split(",").map((g) => `Grade ${g.trim()}`).join(",") : null} color="emerald" />
+                          </td>
+                          <td className="px-6 py-4"><Tags value={s.section} color="emerald" /></td>
+                        </>
                       )}
 
-                      <td className="px-6 py-4 text-slate-500">
+                      <td className="px-6 py-4">
                         {s.facultyName ? (
-                          <span className="inline-flex items-center gap-1.5">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+                          <span className="inline-flex items-center gap-2">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
                               {s.facultyName.charAt(0).toUpperCase()}
                             </span>
-                            {s.facultyName}
+                            <span className="text-sm font-medium text-slate-800">{s.facultyName}</span>
                           </span>
                         ) : (
                           <span className="text-slate-400 italic text-xs">Not assigned</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-slate-500">{formatDate(s.createdAt)}</td>
+                      <td className="px-6 py-4 text-sm text-slate-500">{formatDate(s.createdAt)}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <button type="button" onClick={() => setEditTarget(s)}
-                            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50">
+                            className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
                             Edit
                           </button>
                           <button type="button" onClick={() => handleDelete(s.id, s.name)}
-                            className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100">
+                            className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-100">
                             Delete
                           </button>
                         </div>

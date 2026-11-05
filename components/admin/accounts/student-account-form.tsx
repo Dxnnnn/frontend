@@ -360,6 +360,7 @@ export function StudentAccountForm({
           />
         </div>
 
+        {level === "college" && (
         <div className="space-y-2 sm:col-span-2">
           <label className="block text-sm font-medium text-slate-700">
             Subjects
@@ -416,6 +417,7 @@ export function StudentAccountForm({
             </div>
           )}
         </div>
+        )}
       </div>
 
       {error ? (

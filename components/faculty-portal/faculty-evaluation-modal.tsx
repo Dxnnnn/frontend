@@ -19,6 +19,7 @@ interface FacultyMember {
 
 interface FacultyEvaluationModalProps {
   faculty: FacultyMember;
+  subject: string;
   schoolHeadId: string;
   schoolHeadName: string;
   onClose: () => void;
@@ -27,6 +28,7 @@ interface FacultyEvaluationModalProps {
 
 export function FacultyEvaluationModal({
   faculty,
+  subject,
   schoolHeadId,
   schoolHeadName,
   onClose,
@@ -103,7 +105,7 @@ export function FacultyEvaluationModal({
         facultyId: String(faculty.id),
         facultyName: faculty.name,
         department: faculty.department,
-        subject: faculty.subjects ? faculty.subjects.split(",")[0].trim() : "General",
+        subject: subject || "General",
         semester,
         remarks: remarks.trim() || undefined,
         scoringAnswers: answers,
@@ -140,6 +142,9 @@ export function FacultyEvaluationModal({
                 <h2 className="text-lg font-bold text-white">{faculty.name}</h2>
                 {faculty.position && <p className="text-sm text-brand-100">{faculty.position}</p>}
                 <p className="text-xs text-brand-200 mt-0.5">{faculty.department}</p>
+                <span className="mt-1 inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-semibold text-white">
+                  {subject}
+                </span>
               </div>
             </div>
             <button type="button" onClick={onClose}

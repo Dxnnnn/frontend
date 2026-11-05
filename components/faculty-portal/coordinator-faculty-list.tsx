@@ -16,6 +16,13 @@ interface FacultyMember {
   profile_image?: string | null;
 }
 
+// One row = one teacher + one subject
+interface FacultyRow {
+  member: FacultyMember;
+  subject: string;
+  rowKey: string; // `${member.id}::${subject}`
+}
+
 interface CoordinatorFacultyListProps {
   department: string;
   schoolHeadId?: string;
@@ -34,24 +41,23 @@ export function CoordinatorFacultyList({
   schoolHeadName = "",
 }: CoordinatorFacultyListProps) {
   const [faculty, setFaculty] = useState<FacultyMember[]>([]);
-  const [evaluatedIds, setEvaluatedIds] = useState<Set<string>>(new Set());
-  const [evaluatedNames, setEvaluatedNames] = useState<Set<string>>(new Set());
+  // Evaluated keys: "facultyId::subject"
+  const [evaluatedKeys, setEvaluatedKeys] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [evaluating, setEvaluating] = useState<FacultyMember | null>(null);
+  const [evaluating, setEvaluating] = useState<FacultyRow | null>(null);
 
   const refreshEvaluated = useCallback(() => {
     void getSchoolHeadSubmissionsAsync().then((subs) => {
-      const ids = new Set<string>();
-      const names = new Set<string>();
+      const keys = new Set<string>();
       for (const s of subs) {
-        ids.add(String(s.facultyId));
-        const name = (s.facultyName ?? "").trim().toLowerCase();
-        if (name) names.add(name);
+        const subj = (s.subject ?? "").trim();
+        keys.add(`${s.facultyId}::${subj}`);
+        // also add by name fallback
+        keys.add(`name::${(s.facultyName ?? "").trim().toLowerCase()}::${subj}`);
       }
-      setEvaluatedIds(ids);
-      setEvaluatedNames(names);
+      setEvaluatedKeys(keys);
     });
   }, []);
 
@@ -77,33 +83,48 @@ export function CoordinatorFacultyList({
     return () => { cancelled = true; unsub(); };
   }, [department, refreshEvaluated]);
 
-  function isComplete(member: FacultyMember): boolean {
-    if (evaluatedIds.has(String(member.id))) return true;
-    return Boolean(member.name.trim().toLowerCase() && evaluatedNames.has(member.name.trim().toLowerCase()));
+  // Expand each teacher into one row per subject
+  const allRows = useMemo<FacultyRow[]>(() => {
+    const rows: FacultyRow[] = [];
+    for (const member of faculty) {
+      const subjectList = member.subjects
+        ? member.subjects.split(",").map((s) => s.trim()).filter(Boolean)
+        : ["General"];
+      for (const subject of subjectList) {
+        rows.push({
+          member,
+          subject,
+          rowKey: `${member.id}::${subject}`,
+        });
+      }
+    }
+    return rows;
+  }, [faculty]);
+
+  function isRowComplete(row: FacultyRow): boolean {
+    if (evaluatedKeys.has(`${row.member.id}::${row.subject}`)) return true;
+    if (evaluatedKeys.has(`name::${row.member.name.trim().toLowerCase()}::${row.subject}`)) return true;
+    return false;
   }
 
   const counts = useMemo(() => {
-    let complete = 0;
-    for (const m of faculty) { if (isComplete(m)) complete += 1; }
-    return { complete, pending: faculty.length - complete };
+    const complete = allRows.filter((r) => isRowComplete(r)).length;
+    return { complete, pending: allRows.length - complete, total: allRows.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [faculty, evaluatedIds, evaluatedNames]);
+  }, [allRows, evaluatedKeys]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return faculty;
-    return faculty.filter((m) => {
-      const statusLabel = isComplete(m) ? "complete" : "pending";
-      return (
-        m.name.toLowerCase().includes(q) ||
-        (m.position ?? "").toLowerCase().includes(q) ||
-        (m.subjects ?? "").toLowerCase().includes(q) ||
-        (m.email ?? "").toLowerCase().includes(q) ||
-        statusLabel.includes(q)
-      );
-    });
+    if (!q) return allRows;
+    return allRows.filter((r) =>
+      r.member.name.toLowerCase().includes(q) ||
+      r.subject.toLowerCase().includes(q) ||
+      (r.member.position ?? "").toLowerCase().includes(q) ||
+      (r.member.email ?? "").toLowerCase().includes(q) ||
+      (isRowComplete(r) ? "complete" : "pending").includes(q)
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [faculty, search, evaluatedIds, evaluatedNames]);
+  }, [allRows, search, evaluatedKeys]);
 
   if (loading) {
     return (
@@ -112,7 +133,6 @@ export function CoordinatorFacultyList({
       </div>
     );
   }
-
   if (error) {
     return (
       <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-12 text-center shadow-sm">
@@ -120,7 +140,6 @@ export function CoordinatorFacultyList({
       </div>
     );
   }
-
   if (faculty.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center shadow-sm">
@@ -134,21 +153,21 @@ export function CoordinatorFacultyList({
 
   return (
     <>
-      {/* Evaluation Modal */}
       {evaluating && (
         <FacultyEvaluationModal
-          faculty={evaluating}
+          faculty={evaluating.member}
+          subject={evaluating.subject}
           schoolHeadId={schoolHeadId}
           schoolHeadName={schoolHeadName}
           onClose={() => setEvaluating(null)}
           onSubmitted={() => {
-            // Immediately mark as evaluated in local state
             if (evaluating) {
-              setEvaluatedIds((prev) => new Set([...prev, String(evaluating.id)]));
-              setEvaluatedNames((prev) => new Set([...prev, evaluating.name.trim().toLowerCase()]));
+              setEvaluatedKeys((prev) => new Set([
+                ...prev,
+                `${evaluating.member.id}::${evaluating.subject}`,
+              ]));
             }
             setEvaluating(null);
-            // Also refresh from server in background
             refreshEvaluated();
           }}
         />
@@ -161,10 +180,7 @@ export function CoordinatorFacultyList({
             <div>
               <h2 className="text-base font-semibold text-slate-900">Faculty list</h2>
               <p className="mt-0.5 text-sm text-slate-500">
-                {search.trim()
-                  ? `${filtered.length} of ${faculty.length} teacher${faculty.length === 1 ? "" : "s"}`
-                  : `${faculty.length} teacher${faculty.length === 1 ? "" : "s"}`}{" "}
-                in {department}.{" "}
+                {counts.total} evaluation{counts.total !== 1 ? "s" : ""} in {department}.{" "}
                 <span className="text-brand-600 font-medium">Click a row to evaluate.</span>
               </p>
             </div>
@@ -178,16 +194,15 @@ export function CoordinatorFacultyList({
             </div>
           </div>
 
-          {/* Search */}
           <div className="relative">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
             </svg>
             <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, position, subject, email, or status…"
+              placeholder="Search by name, subject, position, or status…"
               className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-100"
-              aria-label="Search teachers" />
+              aria-label="Search" />
             {search && (
               <button type="button" onClick={() => setSearch("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-slate-400 hover:text-slate-600"
@@ -204,60 +219,63 @@ export function CoordinatorFacultyList({
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto">
           {filtered.length === 0 ? (
             <div className="px-6 py-12 text-center">
-              <p className="text-sm font-medium text-slate-600">No teachers match your search</p>
+              <p className="text-sm font-medium text-slate-600">No results match your search</p>
               <p className="mt-1 text-sm text-slate-400">Try a different name, subject, or status.</p>
             </div>
           ) : (
             <table className="min-w-full text-left text-sm">
               <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-6 py-3 font-medium">Name</th>
-                  <th className="px-6 py-3 font-medium">Position</th>
-                  <th className="px-6 py-3 font-medium">Subjects</th>
+                  <th className="px-6 py-3 font-medium">Instructor Name</th>
+                  <th className="px-6 py-3 font-medium">Subject</th>
+                  <th className="px-6 py-3 font-medium">Department</th>
                   <th className="px-6 py-3 font-medium">Status</th>
-                  <th className="px-6 py-3 font-medium">Email</th>
                   <th className="px-6 py-3 font-medium">Added</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((member) => {
-                  const complete = isComplete(member);
+                {filtered.map((row) => {
+                  const complete = isRowComplete(row);
                   return (
                     <tr
-                      key={member.id}
-                      onClick={() => { if (!complete) setEvaluating(member); }}
+                      key={row.rowKey}
+                      onClick={() => { if (!complete) setEvaluating(row); }}
                       title={complete ? "Already evaluated" : "Click to evaluate"}
                       className={`text-slate-700 transition-colors ${
                         complete
-                          ? "opacity-70 cursor-default bg-slate-50/50"
-                          : "cursor-pointer hover:bg-brand-50 hover:shadow-sm"
+                          ? "opacity-60 cursor-default bg-slate-50/50"
+                          : "cursor-pointer hover:bg-brand-50"
                       }`}
                     >
+                      {/* Instructor Name */}
                       <td className="px-6 py-4">
-                        <div className="flex flex-col items-center gap-1.5 w-20 text-center">
-                          {member.profile_image ? (
-                            <img src={member.profile_image} alt={member.name}
-                              className="h-12 w-12 rounded-full object-cover border-2 border-white shadow-sm" />
+                        <div className="flex items-center gap-3">
+                          {row.member.profile_image ? (
+                            <img src={row.member.profile_image} alt={row.member.name}
+                              className="h-10 w-10 rounded-full object-cover border border-slate-200 shadow-sm shrink-0" />
                           ) : (
-                            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 border-2 border-white shadow-sm">
-                              {member.name.charAt(0).toUpperCase()}
+                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 border border-slate-200 shadow-sm">
+                              {row.member.name.charAt(0).toUpperCase()}
                             </span>
                           )}
-                          <span className="text-xs font-medium text-slate-900 leading-tight break-words w-full">
-                            {member.name}
-                          </span>
+                          <div>
+                            <p className="font-medium text-slate-900">{row.member.name}</p>
+                            {row.member.position && (
+                              <p className="text-xs text-slate-400">{row.member.position}</p>
+                            )}
+                          </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-slate-500">{member.position ?? "—"}</td>
+
+                      {/* Subject */}
                       <td className="px-6 py-4">
-                        {member.subjects ? (
-                          <div className="flex flex-wrap gap-1">
-                            {member.subjects.split(",").map((s) => s.trim()).filter(Boolean).map((s) => (
-                              <span key={s} className="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{s}</span>
-                            ))}
-                          </div>
-                        ) : "—"}
+                        <span className="font-medium text-slate-800">{row.subject}</span>
                       </td>
+
+                      {/* Department */}
+                      <td className="px-6 py-4 text-slate-500">{row.member.department}</td>
+
+                      {/* Status */}
                       <td className="px-6 py-4">
                         {complete ? (
                           <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
@@ -271,8 +289,9 @@ export function CoordinatorFacultyList({
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-slate-500">{member.email ?? "—"}</td>
-                      <td className="px-6 py-4 text-slate-500">{formatDate(member.created_at)}</td>
+
+                      {/* Added */}
+                      <td className="px-6 py-4 text-slate-500">{formatDate(row.member.created_at)}</td>
                     </tr>
                   );
                 })}

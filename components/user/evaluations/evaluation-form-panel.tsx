@@ -17,12 +17,18 @@ interface EvaluationFormPanelProps {
 function InstructorRow({
   member,
   subject,
+  roomNo,
+  scheduleDay,
+  scheduleTime,
   isSelected,
   isAlreadyDone,
   onSelect,
 }: {
   member: Faculty;
   subject: string;
+  roomNo: string | null;
+  scheduleDay: string | null;
+  scheduleTime: string | null;
   isSelected: boolean;
   isAlreadyDone: boolean;
   onSelect: () => void;
@@ -40,7 +46,6 @@ function InstructorRow({
     >
       <td className="px-4 py-3">
         <div className="flex flex-col items-center gap-1.5 w-20 text-center">
-          {/* Avatar — shows uploaded photo or initial fallback */}
           {member.profile_image ? (
             <img
               src={member.profile_image}
@@ -52,7 +57,6 @@ function InstructorRow({
               {member.name.charAt(0).toUpperCase()}
             </span>
           )}
-          {/* Name below the avatar */}
           <span className="text-xs font-medium text-slate-900 leading-tight break-words w-full">
             {member.name}
           </span>
@@ -67,6 +71,23 @@ function InstructorRow({
         </div>
       </td>
       <td className="px-4 py-3 text-sm text-slate-600">{subject}</td>
+      <td className="px-4 py-3">
+        {roomNo ? (
+          <span className="inline-block rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{roomNo}</span>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        )}
+      </td>
+      <td className="px-4 py-3">
+        {scheduleDay || scheduleTime ? (
+          <div className="flex flex-col gap-0.5">
+            {scheduleDay && <span className="text-xs font-semibold text-slate-700">{scheduleDay}</span>}
+            {scheduleTime && <span className="text-xs text-slate-500">{scheduleTime}</span>}
+          </div>
+        ) : (
+          <span className="text-xs text-slate-400">—</span>
+        )}
+      </td>
       <td className="px-4 py-3 text-sm text-slate-500">{displayDepartment(member.department)}</td>
       <td className="px-4 py-3 text-center">
         <input
@@ -181,18 +202,36 @@ function TermsModal({
 interface FacultyRow {
   faculty: Faculty;
   subject: string;
+  roomNo: string | null;
+  scheduleDay: string | null;
+  scheduleTime: string | null;
   rowKey: string;
 }
 
 function buildRows(facultyList: Faculty[]): FacultyRow[] {
   const rows: FacultyRow[] = [];
   for (const member of facultyList) {
-    const subjects = member.subjects ?? [];
-    if (subjects.length === 0) {
-      rows.push({ faculty: member, subject: "—", rowKey: `${member.id}-` });
+    const details = member.subjectDetails ?? [];
+    if (details.length > 0) {
+      for (const d of details) {
+        rows.push({
+          faculty: member,
+          subject: d.name,
+          roomNo: d.roomNo,
+          scheduleDay: d.scheduleDay,
+          scheduleTime: d.scheduleTime,
+          rowKey: `${member.id}-${d.name}`,
+        });
+      }
     } else {
-      for (const subject of subjects) {
-        rows.push({ faculty: member, subject, rowKey: `${member.id}-${subject}` });
+      // fallback: use subjects array without room/schedule
+      const subjects = member.subjects ?? [];
+      if (subjects.length === 0) {
+        rows.push({ faculty: member, subject: "—", roomNo: null, scheduleDay: null, scheduleTime: null, rowKey: `${member.id}-` });
+      } else {
+        for (const subject of subjects) {
+          rows.push({ faculty: member, subject, roomNo: null, scheduleDay: null, scheduleTime: null, rowKey: `${member.id}-${subject}` });
+        }
       }
     }
   }
@@ -370,11 +409,12 @@ export function EvaluationFormPanel({
         // Use the new endpoint that filters by student criteria
         const url = `/api/faculty/for-student?${params}`;
         const res = await fetch(url, { cache: "no-store" });
-        const data = await res.json() as { success?: boolean; faculty?: Array<{ id: number; name: string; department: string; subjects: string; semester: string | null; is_active: number; created_at: string; profile_image?: string | null }> };
+        const data = await res.json() as { success?: boolean; faculty?: Array<{ id: number; name: string; department: string; subjects: string; subjectDetails?: Array<{ name: string; roomNo: string | null; scheduleDay: string | null; scheduleTime: string | null }>; semester: string | null; is_active: number; created_at: string; profile_image?: string | null }> };
         
         const backendFaculty: Faculty[] = (data.faculty ?? []).filter((f) => f.is_active !== 0).map((f) => ({
           id: String(f.id), name: f.name, department: f.department,
           subjects: f.subjects ? f.subjects.split(",").map((s) => s.trim()).filter(Boolean) : [],
+          subjectDetails: f.subjectDetails ?? [],
           semester: f.semester ?? undefined, createdAt: f.created_at,
           profile_image: f.profile_image ?? null,
         }));
@@ -477,13 +517,21 @@ export function EvaluationFormPanel({
           <p className="mt-1 text-sm text-slate-500">
             {studentLevel === "junior-high" || isJHDept ? "Choose the quarter period." : "Choose the semester."}
           </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {semesterOptions.map((s) => (
-              <button key={s} type="button" onClick={() => { setSemesterChoice(s); setSelectedRowKey(""); setScoringAnswers({}); setSuccess(""); }}
-                className={`rounded-xl border px-5 py-2.5 text-sm font-semibold transition ${semester === s ? "border-brand-500 bg-brand-700 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-brand-300"}`}>
-                {s}
-              </button>
-            ))}
+          <div className="mt-4 relative inline-block w-full max-w-xs">
+            <select
+              value={semesterChoice}
+              onChange={(e) => { setSemesterChoice(e.target.value); setSelectedRowKey(""); setScoringAnswers({}); setSuccess(""); }}
+              className="w-full appearance-none rounded-xl border border-slate-200 bg-white px-4 py-3 pr-10 text-sm font-semibold text-slate-800 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+            >
+              <option value="">— Select {studentLevel === "junior-high" || isJHDept ? "quarter" : "semester"} —</option>
+              {semesterOptions.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
           </div>
         </section>
       )}
@@ -521,6 +569,8 @@ export function EvaluationFormPanel({
                   <tr>
                     <th className="px-4 py-3">Instructor Name</th>
                     <th className="px-4 py-3">Subject</th>
+                    <th className="px-4 py-3">Room</th>
+                    <th className="px-4 py-3">Schedule</th>
                     <th className="px-4 py-3">Department</th>
                     <th className="px-4 py-3 text-center">Select</th>
                   </tr>
@@ -531,6 +581,9 @@ export function EvaluationFormPanel({
                       key={row.rowKey}
                       member={row.faculty}
                       subject={row.subject}
+                      roomNo={row.roomNo}
+                      scheduleDay={row.scheduleDay}
+                      scheduleTime={row.scheduleTime}
                       isSelected={selectedRowKey === row.rowKey}
                       isAlreadyDone={isRowEvaluated(row)}
                       onSelect={() => { setSelectedRowKey((prev) => prev === row.rowKey ? "" : row.rowKey); setScoringAnswers({}); setError(""); }}

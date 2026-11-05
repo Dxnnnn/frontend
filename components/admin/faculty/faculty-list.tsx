@@ -43,10 +43,6 @@ function EditFacultyModal({
   const [email, setEmail] = useState(member.email ?? "");
   const [position, setPosition] = useState(member.position ?? "");
   const [department, setDepartment] = useState(member.department);
-  const [subjectInput, setSubjectInput] = useState("");
-  const [subjects, setSubjects] = useState<string[]>(
-    member.subjects ? member.subjects.split(",").map((s) => s.trim()).filter(Boolean) : []
-  );
   const [semester, setSemester] = useState(member.semester ?? "");
   const [dbSemesters, setDbSemesters] = useState<string[]>([]);
   const [profileImage, setProfileImage] = useState<string | null>(member.profile_image ?? null);
@@ -67,13 +63,6 @@ function EditFacultyModal({
 
   const inputCls = "w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100";
 
-  function addSubject() {
-    const trimmed = subjectInput.trim();
-    if (!trimmed || subjects.includes(trimmed)) { setSubjectInput(""); return; }
-    setSubjects((prev) => [...prev, trimmed]);
-    setSubjectInput("");
-  }
-
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !department.trim()) {
@@ -89,7 +78,6 @@ function EditFacultyModal({
         email: email.trim() || null,
         position: position.trim() || null,
         department: department.trim(),
-        subjects,
         semester: semester.trim() || null,
         profile_image: profileImage ?? null,
       }),
@@ -182,32 +170,6 @@ function EditFacultyModal({
             <div className="space-y-1.5 sm:col-span-2">
               <label className="block text-sm font-medium text-slate-700">Department *</label>
               <input value={department} onChange={e => setDepartment(e.target.value)} className={inputCls} required />
-            </div>
-            <div className="space-y-1.5 sm:col-span-2">
-              <label className="block text-sm font-medium text-slate-700">Subjects</label>
-              <div className="flex gap-2">
-                <input
-                  value={subjectInput}
-                  onChange={e => setSubjectInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addSubject(); } }}
-                  placeholder="Type a subject and press Enter"
-                  className={inputCls}
-                />
-                <button type="button" onClick={addSubject}
-                  className="shrink-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">
-                  Add
-                </button>
-              </div>
-              {subjects.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {subjects.map((s) => (
-                    <span key={s} className="inline-flex items-center gap-1 rounded-lg border border-brand-100 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700">
-                      {s}
-                      <button type="button" onClick={() => setSubjects(prev => prev.filter(x => x !== s))} className="text-brand-400 hover:text-brand-700">×</button>
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
 
             {/* Semester — loaded from DB */}
