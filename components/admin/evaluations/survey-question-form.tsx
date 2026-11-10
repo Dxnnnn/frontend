@@ -32,7 +32,7 @@ export function SurveyQuestionForm({
   embedded = false,
 }: SurveyQuestionFormProps) {
   const [text, setText] = useState("");
-  const [category, setCategory] = useState<QuestionCategory>("Instructional Competence");
+  const [category, setCategory] = useState<QuestionCategory>("Instructional Design");
   const [evaluationType, setEvaluationType] = useState<EvaluationType>("rating");
   const [isActive, setIsActive] = useState(true);
   const [error, setError] = useState("");

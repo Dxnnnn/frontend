@@ -135,7 +135,7 @@ export function AdminLoginForm() {
       }
 
       markSessionActive();
-      router.push(getRoleDestination(data.user.role));
+      router.push(getRoleDestination(data.user.role, data.user.adminRole));
       router.refresh();
     } catch {
       setError("Unable to connect to the server. Make sure the backend is running.");

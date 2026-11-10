@@ -6,14 +6,24 @@ import { usePathname } from "next/navigation";
 
 import { AdminNavIcon } from "@/components/admin/admin-icons";
 import { LogoutButton } from "@/components/auth/logout-button";
-import { adminNavItems } from "@/lib/admin/nav";
+import { getAdminNavItems, getAdminPortalLabel } from "@/lib/admin/nav";
+import type { AdminSubRole } from "@/lib/types/auth";
 
 interface AdminSidebarProps {
   collapsed: boolean;
+  adminRole?: AdminSubRole;
+  adminName?: string;
+  permissions?: Record<string, boolean>;
 }
 
-export function AdminSidebar({ collapsed }: AdminSidebarProps) {
+export function AdminSidebar({ collapsed, adminRole, adminName, permissions }: AdminSidebarProps) {
   const pathname = usePathname();
+  const navItems = getAdminNavItems(adminRole, permissions);
+  const portalLabel = getAdminPortalLabel(adminRole);
+
+  // Badge color per role
+  const badgeColor =
+    adminRole === "Executive Office" ? "text-violet-300" : "text-yellow-400"; // Super Admin
 
   return (
     <aside
@@ -41,17 +51,17 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
         {!collapsed ? (
           <div className="mt-3 text-center">
             <p className="text-sm font-bold tracking-wide text-white">Benedicto College</p>
-            <p className="mt-0.5 text-xs font-medium text-yellow-400">Super Admin Portal</p>
+            <p className={`mt-0.5 text-xs font-medium ${badgeColor}`}>{portalLabel}</p>
           </div>
         ) : null}
       </div>
 
       {/* ── Nav links ── */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {adminNavItems.map((item) => {
+        {navItems.map((item) => {
           const isActive =
-            item.href === "/admin"
-              ? pathname === "/admin"
+            item.href === "/admin" || item.href === "/eo" || item.href === "/dc"
+              ? pathname === item.href
               : pathname.startsWith(item.href);
 
           return (
@@ -74,8 +84,45 @@ export function AdminSidebar({ collapsed }: AdminSidebarProps) {
         })}
       </nav>
 
-      {/* ── Logout ── */}
-      <div className="border-t border-white/10 px-3 py-4">
+      {/* ── User info + Logout ── */}
+      <div className="border-t border-white/10 px-3 py-4 space-y-1">
+        {/* Name card — only for EO and DC, not Super Admin */}
+        {adminName && adminRole !== "Super Admin" && !collapsed && (
+          <div className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2.5 mb-1">
+            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+              adminRole === "Executive Office"
+                ? "bg-violet-400/30 text-violet-200"
+                : "bg-blue-400/30 text-blue-200"
+            }`}>
+              {adminName.charAt(0).toUpperCase()}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-white/90">
+                Admin — {adminName}
+              </p>
+              <p className={`text-[11px] font-medium truncate ${
+                adminRole === "Executive Office" ? "text-violet-300" : "text-blue-300"
+              }`}>
+                {adminRole}
+              </p>
+            </div>
+          </div>
+        )}
+        {/* Collapsed state — just the avatar */}
+        {adminName && adminRole !== "Super Admin" && collapsed && (
+          <div className="flex justify-center mb-1">
+            <span
+              title={`Admin — ${adminName}`}
+              className={`flex h-8 w-8 items-center justify-center rounded-lg text-xs font-bold ${
+                adminRole === "Executive Office"
+                  ? "bg-violet-400/30 text-violet-200"
+                  : "bg-blue-400/30 text-blue-200"
+              }`}
+            >
+              {adminName.charAt(0).toUpperCase()}
+            </span>
+          </div>
+        )}
         <LogoutButton
           redirectTo="/admin/login"
           collapsed={collapsed}

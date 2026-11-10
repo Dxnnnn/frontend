@@ -13,9 +13,11 @@ export async function GET(request: Request) {
     if (searchParams.get("student_level")) params.set("student_level", searchParams.get("student_level")!);
 
     const url = `${BACKEND}/api/survey-questions${params.toString() ? `?${params}` : ""}`;
-    // GET questions is public — no auth header needed, but include if present
-    const headers = await getAuthHeaders();
-    const res = await fetch(url, { cache: "no-store", headers });
+    // GET is public — no auth header needed
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+    });
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch {

@@ -44,6 +44,8 @@ export async function POST(request: Request) {
         strand: string | null;
         course: string | null;
         section: string | null;
+        is_irregular?: boolean;
+        subjects?: string | null;
         role: string;
       };
     };
@@ -92,6 +94,8 @@ export async function POST(request: Request) {
       year_level: data.user.year_level ?? null,
       course: data.user.course ?? null,
       section: data.user.section ?? null,
+      is_irregular: data.user.is_irregular ?? false,
+      subjects: data.user.subjects ?? null,
     }), {
       httpOnly: false,
       sameSite: "lax",

@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { ManagePermissionsModal } from "@/components/admin/settings/manage-permissions-modal";
 
 interface AdminAccount {
   id: number;
   username: string;
   email: string;
   full_name: string;
+  role: string;
   is_active: number;
   created_at: string;
 }
@@ -24,6 +26,7 @@ const inputCls = "w-full rounded-xl border border-slate-200 px-4 py-3 text-sm te
 function CreateAdminModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState("Data Center");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -56,7 +59,7 @@ function CreateAdminModal({ onClose, onCreated }: { onClose: () => void; onCreat
       const res = await fetch("/api/admins", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ full_name: fullName.trim(), email: email.trim(), password }),
+        body: JSON.stringify({ full_name: fullName.trim(), email: email.trim(), password, role }),
       });
       const data = await res.json() as { success?: boolean; message?: string };
       if (!res.ok || !data.success) { setError(data.message ?? "Failed to create admin."); return; }
@@ -89,6 +92,13 @@ function CreateAdminModal({ onClose, onCreated }: { onClose: () => void; onCreat
             <label className="block text-sm font-medium text-slate-700">Full Name <span className="text-red-500">*</span></label>
             <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)}
               placeholder="e.g. Eduardo Reyes" className={inputCls} required />
+          </div>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-slate-700">Role <span className="text-red-500">*</span></label>
+            <select value={role} onChange={(e) => setRole(e.target.value)} className={inputCls} required>
+              <option value="Data Center">Data Center</option>
+              <option value="Executive Office">Executive Office (EO)</option>
+            </select>
           </div>
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-slate-700">Email <span className="text-red-500">*</span></label>
@@ -145,6 +155,7 @@ export function SettingsPanel({ currentAdminName, currentAdminEmail }: SettingsP
   const [admins, setAdmins] = useState<AdminAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [permAdmin, setPermAdmin] = useState<AdminAccount | null>(null);
 
   // Profile / password state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -211,6 +222,14 @@ export function SettingsPanel({ currentAdminName, currentAdminEmail }: SettingsP
   return (
     <>
       {createOpen && <CreateAdminModal onClose={() => setCreateOpen(false)} onCreated={loadAdmins} />}
+      {permAdmin && (
+        <ManagePermissionsModal
+          adminId={permAdmin.id}
+          adminName={permAdmin.full_name || permAdmin.username}
+          adminRole={permAdmin.role}
+          onClose={() => setPermAdmin(null)}
+        />
+      )}
 
       <div className="space-y-6">
         {/* Tabs */}
@@ -240,7 +259,7 @@ export function SettingsPanel({ currentAdminName, currentAdminEmail }: SettingsP
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
                 </svg>
-                Create Admin Staff
+                Create Admin
               </button>
             </div>
 
@@ -254,6 +273,7 @@ export function SettingsPanel({ currentAdminName, currentAdminEmail }: SettingsP
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                     <tr>
                       <th className="px-6 py-3 font-medium">Admin</th>
+                      <th className="px-6 py-3 font-medium">Role</th>
                       <th className="px-6 py-3 font-medium">Email</th>
                       <th className="px-6 py-3 font-medium">Status</th>
                       <th className="px-6 py-3 font-medium">Added</th>
@@ -275,6 +295,17 @@ export function SettingsPanel({ currentAdminName, currentAdminEmail }: SettingsP
                               <p className="text-xs text-slate-400">@{admin.username}</p>
                             </div>
                           </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            admin.role === "Executive Office"
+                              ? "bg-violet-100 text-violet-700"
+                              : admin.role === "Data Center"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-yellow-100 text-yellow-700"
+                          }`}>
+                            {admin.role}
+                          </span>
                         </td>
                         <td className="px-6 py-4 text-slate-600">{admin.email}</td>
                         <td className="px-6 py-4">

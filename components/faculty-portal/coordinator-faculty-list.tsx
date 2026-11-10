@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { AddTeacherModal } from "@/components/faculty-portal/add-teacher-modal";
 import { getSchoolHeadSubmissionsAsync } from "@/lib/faculty-portal/coordinator-submissions";
 import { onEvaluationsUpdated } from "@/lib/admin/evaluation-events";
-import { FacultyEvaluationModal } from "@/components/faculty-portal/faculty-evaluation-modal";
 
 interface FacultyMember {
   id: number;
@@ -16,11 +16,11 @@ interface FacultyMember {
   profile_image?: string | null;
 }
 
-// One row = one teacher + one subject
+// One row = one teacher × one subject
 interface FacultyRow {
   member: FacultyMember;
   subject: string;
-  rowKey: string; // `${member.id}::${subject}`
+  rowKey: string;
 }
 
 interface CoordinatorFacultyListProps {
@@ -38,268 +38,239 @@ function formatDate(dateStr: string) {
 export function CoordinatorFacultyList({
   department,
   schoolHeadId = "",
-  schoolHeadName = "",
 }: CoordinatorFacultyListProps) {
-  const [faculty, setFaculty] = useState<FacultyMember[]>([]);
-  // Evaluated keys: "facultyId::subject"
+  const [faculty, setFaculty]             = useState<FacultyMember[]>([]);
   const [evaluatedKeys, setEvaluatedKeys] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [search, setSearch] = useState("");
-  const [evaluating, setEvaluating] = useState<FacultyRow | null>(null);
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState("");
+  const [search, setSearch]               = useState("");
+  const [addTeacherOpen, setAddTeacherOpen] = useState(false);
 
+  // ── Load evaluated submissions ────────────────────────────────────────────
   const refreshEvaluated = useCallback(() => {
     void getSchoolHeadSubmissionsAsync().then((subs) => {
       const keys = new Set<string>();
       for (const s of subs) {
         const subj = (s.subject ?? "").trim();
         keys.add(`${s.facultyId}::${subj}`);
-        // also add by name fallback
         keys.add(`name::${(s.facultyName ?? "").trim().toLowerCase()}::${subj}`);
       }
       setEvaluatedKeys(keys);
     });
   }, []);
 
-  useEffect(() => {
+  function loadFaculty() {
     if (!department) return;
-    let cancelled = false;
-    void (async () => {
-      try {
-        const r = await fetch(`/api/faculty?department=${encodeURIComponent(department)}`);
-        const data = (await r.json()) as { success?: boolean; faculty?: FacultyMember[] };
-        if (!cancelled) {
-          setFaculty(data.faculty ?? []);
-          setError("");
-          refreshEvaluated();
-        }
-      } catch {
-        if (!cancelled) setError("Failed to load faculty records.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    const unsub = onEvaluationsUpdated(() => refreshEvaluated());
-    return () => { cancelled = true; unsub(); };
-  }, [department, refreshEvaluated]);
+    setLoading(true);
+    fetch(`/api/faculty?department=${encodeURIComponent(department)}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: { faculty?: FacultyMember[] }) => {
+        setFaculty(d.faculty ?? []);
+        setError("");
+        refreshEvaluated();
+      })
+      .catch(() => setError("Failed to load teachers."))
+      .finally(() => setLoading(false));
+  }
 
-  // Expand each teacher into one row per subject
+  useEffect(() => {
+    loadFaculty();
+    const unsub = onEvaluationsUpdated(refreshEvaluated);
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [department]);
+
+  // ── Build rows (one per teacher × subject) ────────────────────────────────
   const allRows = useMemo<FacultyRow[]>(() => {
     const rows: FacultyRow[] = [];
     for (const member of faculty) {
-      const subjectList = member.subjects
+      const list = member.subjects
         ? member.subjects.split(",").map((s) => s.trim()).filter(Boolean)
-        : ["General"];
-      for (const subject of subjectList) {
-        rows.push({
-          member,
-          subject,
-          rowKey: `${member.id}::${subject}`,
-        });
-      }
+        : ["—"];
+      list.forEach((subject, idx) => {
+        rows.push({ member, subject, rowKey: `${member.id}::${subject}::${idx}` });
+      });
     }
     return rows;
   }, [faculty]);
 
-  function isRowComplete(row: FacultyRow): boolean {
-    if (evaluatedKeys.has(`${row.member.id}::${row.subject}`)) return true;
-    if (evaluatedKeys.has(`name::${row.member.name.trim().toLowerCase()}::${row.subject}`)) return true;
-    return false;
+  function isComplete(row: FacultyRow): boolean {
+    return (
+      evaluatedKeys.has(`${row.member.id}::${row.subject}`) ||
+      evaluatedKeys.has(`name::${row.member.name.trim().toLowerCase()}::${row.subject}`)
+    );
   }
 
-  const counts = useMemo(() => {
-    const complete = allRows.filter((r) => isRowComplete(r)).length;
-    return { complete, pending: allRows.length - complete, total: allRows.length };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allRows, evaluatedKeys]);
-
-  const filtered = useMemo(() => {
+  const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return allRows;
     return allRows.filter((r) =>
       r.member.name.toLowerCase().includes(q) ||
-      r.subject.toLowerCase().includes(q) ||
       (r.member.position ?? "").toLowerCase().includes(q) ||
-      (r.member.email ?? "").toLowerCase().includes(q) ||
-      (isRowComplete(r) ? "complete" : "pending").includes(q)
+      r.subject.toLowerCase().includes(q) ||
+      (r.member.email ?? "").toLowerCase().includes(q)
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allRows, search, evaluatedKeys]);
+  }, [allRows, search]);
 
-  if (loading) {
-    return (
-      <div className="rounded-2xl border border-slate-200 bg-white px-6 py-12 text-center shadow-sm">
-        <p className="text-sm text-slate-500">Loading...</p>
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-12 text-center shadow-sm">
-        <p className="text-sm text-red-600">{error}</p>
-      </div>
-    );
-  }
-  if (faculty.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center shadow-sm">
-        <p className="text-sm font-medium text-slate-600">No faculty in this department</p>
-        <p className="mt-1 text-sm text-slate-500">
-          Teachers assigned to {department} will appear here once added by admin.
-        </p>
-      </div>
-    );
-  }
+  const completeCount = useMemo(
+    () => allRows.filter((r) => isComplete(r)).length,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allRows, evaluatedKeys]
+  );
 
   return (
     <>
-      {evaluating && (
-        <FacultyEvaluationModal
-          faculty={evaluating.member}
-          subject={evaluating.subject}
-          schoolHeadId={schoolHeadId}
-          schoolHeadName={schoolHeadName}
-          onClose={() => setEvaluating(null)}
-          onSubmitted={() => {
-            if (evaluating) {
-              setEvaluatedKeys((prev) => new Set([
-                ...prev,
-                `${evaluating.member.id}::${evaluating.subject}`,
-              ]));
-            }
-            setEvaluating(null);
-            refreshEvaluated();
-          }}
+      {addTeacherOpen && (
+        <AddTeacherModal
+          department={department}
+          onClose={() => setAddTeacherOpen(false)}
+          onCreated={() => { setAddTeacherOpen(false); loadFaculty(); }}
         />
       )}
 
-      <section className="flex max-h-[560px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         {/* Header */}
-        <div className="shrink-0 space-y-4 border-b border-slate-200 px-6 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-base font-semibold text-slate-900">Faculty list</h2>
-              <p className="mt-0.5 text-sm text-slate-500">
-                {counts.total} evaluation{counts.total !== 1 ? "s" : ""} in {department}.{" "}
-                <span className="text-brand-600 font-medium">Click a row to evaluate.</span>
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs font-semibold">
-              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-emerald-700">
-                Complete: {counts.complete}
-              </span>
-              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-amber-700">
-                Pending: {counts.pending}
-              </span>
-            </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-6 py-4">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">Teachers List</h2>
+            <p className="mt-0.5 text-sm text-slate-500">
+              {faculty.length} teacher{faculty.length !== 1 ? "s" : ""} in{" "}
+              <span className="font-medium text-brand-700">{department}</span>
+            </p>
           </div>
-
-          <div className="relative">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
-            </svg>
-            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, subject, position, or status…"
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-100"
-              aria-label="Search" />
-            {search && (
-              <button type="button" onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-slate-400 hover:text-slate-600"
-                aria-label="Clear search">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+          <div className="flex items-center gap-2">
+            {/* Progress summary */}
+            {!loading && allRows.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Complete: {completeCount}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  Pending: {allRows.length - completeCount}
+                </span>
+              </div>
             )}
+            {/* Search */}
+            <div className="relative">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+              </svg>
+              <input type="search" value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search teachers…"
+                className="w-48 rounded-xl border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-800 outline-none transition focus:border-brand-500 focus:bg-white focus:ring-2 focus:ring-brand-100" />
+            </div>
+            {/* Add Teacher */}
+            <button type="button" onClick={() => setAddTeacherOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-brand-700 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-800">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="h-4 w-4" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+              </svg>
+              Add Teacher
+            </button>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-auto">
-          {filtered.length === 0 ? (
-            <div className="px-6 py-12 text-center">
-              <p className="text-sm font-medium text-slate-600">No results match your search</p>
-              <p className="mt-1 text-sm text-slate-400">Try a different name, subject, or status.</p>
-            </div>
-          ) : (
-            <table className="min-w-full text-left text-sm">
-              <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                <tr>
-                  <th className="px-6 py-3 font-medium">Instructor Name</th>
-                  <th className="px-6 py-3 font-medium">Subject</th>
-                  <th className="px-6 py-3 font-medium">Department</th>
-                  <th className="px-6 py-3 font-medium">Status</th>
-                  <th className="px-6 py-3 font-medium">Added</th>
+        {/* Body */}
+        {loading ? (
+          <div className="px-6 py-12 text-center">
+            <div className="mx-auto h-6 w-6 animate-spin rounded-full border-4 border-slate-200 border-t-brand-600" />
+            <p className="mt-3 text-sm text-slate-400">Loading…</p>
+          </div>
+        ) : error ? (
+          <div className="px-6 py-10 text-center">
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        ) : faculty.length === 0 ? (
+          <div className="px-6 py-14 text-center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"
+              className="mx-auto h-10 w-10 text-slate-300" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+            </svg>
+            <p className="mt-3 text-sm font-medium text-slate-600">No teachers yet</p>
+            <p className="mt-1 text-xs text-slate-400">
+              Click <span className="font-semibold text-brand-700">Add Teacher</span> to get started.
+            </p>
+          </div>
+        ) : filteredRows.length === 0 ? (
+          <div className="px-6 py-10 text-center">
+            <p className="text-sm text-slate-500">No teachers match your search.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="px-6 py-3 text-left">Teacher</th>
+                  <th className="px-6 py-3 text-left">Position</th>
+                  <th className="px-6 py-3 text-left">Subject</th>
+                  <th className="px-6 py-3 text-left">Email</th>
+                  <th className="px-6 py-3 text-left">Added</th>
+                  <th className="px-6 py-3 text-left">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map((row) => {
-                  const complete = isRowComplete(row);
+                {filteredRows.map((row) => {
+                  const done = isComplete(row);
                   return (
-                    <tr
-                      key={row.rowKey}
-                      onClick={() => { if (!complete) setEvaluating(row); }}
-                      title={complete ? "Already evaluated" : "Click to evaluate"}
-                      className={`text-slate-700 transition-colors ${
-                        complete
-                          ? "opacity-60 cursor-default bg-slate-50/50"
-                          : "cursor-pointer hover:bg-brand-50"
-                      }`}
-                    >
-                      {/* Instructor Name */}
-                      <td className="px-6 py-4">
+                    <tr key={row.rowKey}
+                      className={`transition-colors hover:bg-slate-50 ${done ? "border-l-4 border-l-emerald-400" : "border-l-4 border-l-amber-400"}`}>
+
+                      {/* Teacher — show avatar + name only on first subject row */}
+                      <td className="px-6 py-3.5">
                         <div className="flex items-center gap-3">
                           {row.member.profile_image ? (
                             <img src={row.member.profile_image} alt={row.member.name}
-                              className="h-10 w-10 rounded-full object-cover border border-slate-200 shadow-sm shrink-0" />
+                              className="h-8 w-8 rounded-full object-cover border border-slate-200 shrink-0" />
                           ) : (
-                            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700 border border-slate-200 shadow-sm">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
                               {row.member.name.charAt(0).toUpperCase()}
                             </span>
                           )}
-                          <div>
-                            <p className="font-medium text-slate-900">{row.member.name}</p>
-                            {row.member.position && (
-                              <p className="text-xs text-slate-400">{row.member.position}</p>
-                            )}
-                          </div>
+                          <span className="font-medium text-slate-900">{row.member.name}</span>
                         </div>
                       </td>
 
-                      {/* Subject */}
-                      <td className="px-6 py-4">
-                        <span className="font-medium text-slate-800">{row.subject}</span>
+                      {/* Position */}
+                      <td className="px-6 py-3.5 text-slate-500">{row.member.position ?? "—"}</td>
+
+                      {/* Subject — one per row */}
+                      <td className="px-6 py-3.5">
+                        <span className="rounded-full bg-brand-50 border border-brand-200 px-3 py-1 text-xs font-semibold text-brand-700">
+                          {row.subject}
+                        </span>
                       </td>
 
-                      {/* Department */}
-                      <td className="px-6 py-4 text-slate-500">{row.member.department}</td>
+                      {/* Email */}
+                      <td className="px-6 py-3.5 text-slate-500">{row.member.email ?? "—"}</td>
+
+                      {/* Added */}
+                      <td className="px-6 py-3.5 text-slate-500">{formatDate(row.member.created_at)}</td>
 
                       {/* Status */}
-                      <td className="px-6 py-4">
-                        {complete ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+                      <td className="px-6 py-3.5">
+                        {done ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                             Complete
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                             Pending
                           </span>
                         )}
                       </td>
-
-                      {/* Added */}
-                      <td className="px-6 py-4 text-slate-500">{formatDate(row.member.created_at)}</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-          )}
-        </div>
-      </section>
+          </div>
+        )}
+      </div>
     </>
   );
 }

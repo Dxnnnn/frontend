@@ -36,5 +36,12 @@ export function FacultyPortalNavIcon({
           <path strokeLinecap="round" strokeLinejoin="round" d="M8 15.5v-4M12 15.5V8.5M16 15.5v-2" />
         </svg>
       );
+    case "evaluate":
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17.586 3.586a2 2 0 112.828 2.828L12 15l-4 1 1-4 8.586-8.414z" />
+        </svg>
+      );
   }
 }

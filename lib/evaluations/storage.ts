@@ -19,7 +19,7 @@ function normalizeQuestion(record: unknown, index: number): SurveyQuestion {
     audience: q.audience ?? "student",
     studentLevel: (q.studentLevel as StudentLevel) ?? "all",
     section: q.section ?? "scoring",
-    category: (q.category as QuestionCategory) ?? "Other",
+    category: (q.category as QuestionCategory) ?? "Others",
     evaluationType: (q.evaluationType as EvaluationType) ?? "rating",
     required: q.required ?? true,
     isActive: q.isActive === false ? false : (q.isActive ?? true),
@@ -34,11 +34,15 @@ function normalizeQuestion(record: unknown, index: number): SurveyQuestion {
  * Load all questions from MySQL via the API.
  */
 export async function loadQuestions(): Promise<SurveyQuestion[]> {
-  const res = await fetch("/api/survey-questions", { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to load questions from server.");
-  const data = (await res.json()) as { success?: boolean; questions?: SurveyQuestion[] };
-  if (!Array.isArray(data.questions)) throw new Error("Invalid response from server.");
-  return data.questions.map((q, i) => normalizeQuestion(q, i));
+  try {
+    const res = await fetch("/api/survey-questions", { cache: "no-store" });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { success?: boolean; questions?: SurveyQuestion[] };
+    if (!Array.isArray(data.questions)) return [];
+    return data.questions.map((q, i) => normalizeQuestion(q, i));
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -54,7 +58,7 @@ export async function getSurveyQuestionsAsync(
   if (section) params.set("section", section);
   if (studentLevel && studentLevel !== "all") params.set("student_level", studentLevel);
   const res = await fetch(`/api/survey-questions?${params}`, { cache: "no-store" });
-  if (!res.ok) throw new Error("Failed to load questions.");
+  if (!res.ok) return [];
   const data = (await res.json()) as { questions?: SurveyQuestion[] };
   return (data.questions ?? []).map((q, i) => normalizeQuestion(q, i));
 }
@@ -243,7 +247,7 @@ export async function importQuestionsCSV(
       audience,
       studentLevel: "all",
       section: (cols[2]?.trim() as QuestionSection) ?? "scoring",
-      category: (cols[3]?.trim() as QuestionCategory) ?? "Other",
+      category: (cols[3]?.trim() as QuestionCategory) ?? "Others",
       evaluationType: (cols[4]?.trim() as EvaluationType) ?? "rating",
       required: cols[5]?.trim() !== "No",
       isActive: cols[6]?.trim() !== "No",

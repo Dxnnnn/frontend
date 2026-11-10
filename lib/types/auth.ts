@@ -1,4 +1,5 @@
 export type UserRole = "admin" | "user" | "faculty";
+export type AdminSubRole = "Executive Office" | "Data Center" | "Super Admin";
 
 export type LoginPortal = "student" | "staff";
 
@@ -7,7 +8,9 @@ export interface AuthUser {
   username: string;
   name: string;
   role: UserRole;
+  adminRole?: AdminSubRole;
   department?: string;
+  permissions?: Record<string, boolean>;
 }
 
 export interface LoginRequest {
@@ -27,10 +30,12 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
-export function getRoleDestination(role: UserRole): string {
+export function getRoleDestination(role: UserRole, adminRole?: AdminSubRole): string {
   switch (role) {
     case "admin":
-      return "/admin";
+      if (adminRole === "Executive Office") return "/eo";
+      if (adminRole === "Data Center") return "/dc";
+      return "/admin/settings"; // Super Admin
     case "faculty":
       return "/faculty";
     case "user":

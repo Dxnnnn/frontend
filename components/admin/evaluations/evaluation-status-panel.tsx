@@ -55,8 +55,17 @@ interface SchoolHeadStatusRow {
 
 type ViewMode = "student" | "school_head";
 
-export function EvaluationStatusPanel() {
-  const [viewMode, setViewMode] = useState<ViewMode>("student");
+interface EvaluationStatusPanelProps {
+  allowStudent?:    boolean;
+  allowSchoolHead?: boolean;
+}
+
+export function EvaluationStatusPanel({
+  allowStudent    = true,
+  allowSchoolHead = true,
+}: EvaluationStatusPanelProps) {
+  const defaultView: ViewMode = allowStudent ? "student" : "school_head";
+  const [viewMode, setViewMode] = useState<ViewMode>(defaultView);
   const [studentRows, setStudentRows] = useState<StudentStatusRow[]>([]);
   const [schoolHeadRows, setSchoolHeadRows] = useState<SchoolHeadStatusRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -153,13 +162,27 @@ export function EvaluationStatusPanel() {
             return nameMatch || idMatch;
           });
 
-          // Count faculty in this school head's department
+          // Count faculty×subject rows in this school head's department
+          // (mirrors CoordinatorFacultyList and SchoolHeadDashboard logic)
           const deptFaculty = allFaculty.filter((f) =>
             f.department.toLowerCase().includes(sh.department.toLowerCase()) ||
             sh.department.toLowerCase().includes(f.department.toLowerCase())
           );
-          const totalFaculty = deptFaculty.length > 0 ? deptFaculty.length : 0;
-          const evaluatedCount = shSubs.length;
+          // Expand each faculty into one row per subject
+          let totalRows = 0;
+          for (const f of deptFaculty) {
+            const subjectList = f.subjects
+              ? f.subjects.split(",").map((s: string) => s.trim()).filter(Boolean)
+              : [];
+            totalRows += subjectList.length > 0 ? subjectList.length : 1;
+          }
+          const totalFaculty = totalRows > 0 ? totalRows : 0;
+
+          // Count unique faculty+subject evaluations submitted
+          const evaluatedKeys = new Set(
+            shSubs.map((s) => `${String(s.facultyId)}::${(s.subject ?? "").trim()}`)
+          );
+          const evaluatedCount = evaluatedKeys.size;
           const isDone = totalFaculty > 0 && evaluatedCount >= totalFaculty;
 
           // Use most recent submission semester, or "Pending" if none yet
@@ -167,7 +190,6 @@ export function EvaluationStatusPanel() {
           const semester = lastSub?.semester ?? "—";
           const lastSubmittedAt = lastSub?.submittedAt ?? null;
 
-          // Always include every active school head — pending ones show 0/total
           builtSchoolHeads.push({
             schoolHead: sh,
             evaluatedCount,
@@ -227,34 +249,37 @@ export function EvaluationStatusPanel() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-900">Evaluation Status for</p>
-            <p className="mt-1 text-sm text-slate-500">
-              {viewMode === "student"
-                ? ""
-                : ""}
-            </p>
           </div>
-          <div className="relative grid w-full max-w-xs grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 sm:shrink-0">
-            <span
-              aria-hidden="true"
-              className={`pointer-events-none absolute bottom-1 top-1 rounded-lg bg-white shadow-sm transition-all duration-300 ease-in-out ${
-                viewMode === "student"
-                  ? "left-1 right-[calc(50%+2px)]"
-                  : "left-[calc(50%+2px)] right-1"
-              }`}
-            />
-            <button type="button" onClick={() => { setViewMode("student"); setSearch(""); setDeptFilter("all"); }}
-              className={`relative z-10 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors duration-300 ${
-                viewMode === "student" ? "text-emerald-800" : "text-slate-500 hover:text-slate-800"
-              }`}>
-              Student
-            </button>
-            <button type="button" onClick={() => { setViewMode("school_head"); setSearch(""); setDeptFilter("all"); }}
-              className={`relative z-10 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors duration-300 ${
-                viewMode === "school_head" ? "text-brand-800" : "text-slate-500 hover:text-slate-800"
-              }`}>
-              School Head
-            </button>
-          </div>
+          {/* Only show toggle when both are allowed */}
+          {allowStudent && allowSchoolHead ? (
+            <div className="relative grid w-full max-w-xs grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1 sm:shrink-0">
+              <span
+                aria-hidden="true"
+                className={`pointer-events-none absolute bottom-1 top-1 rounded-lg bg-white shadow-sm transition-all duration-300 ease-in-out ${
+                  viewMode === "student"
+                    ? "left-1 right-[calc(50%+2px)]"
+                    : "left-[calc(50%+2px)] right-1"
+                }`}
+              />
+              <button type="button" onClick={() => { setViewMode("student"); setSearch(""); setDeptFilter("all"); }}
+                className={`relative z-10 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors duration-300 ${
+                  viewMode === "student" ? "text-emerald-800" : "text-slate-500 hover:text-slate-800"
+                }`}>
+                Student
+              </button>
+              <button type="button" onClick={() => { setViewMode("school_head"); setSearch(""); setDeptFilter("all"); }}
+                className={`relative z-10 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors duration-300 ${
+                  viewMode === "school_head" ? "text-brand-800" : "text-slate-500 hover:text-slate-800"
+                }`}>
+                School Head
+              </button>
+            </div>
+          ) : (
+            /* Single-mode label */
+            <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
+              {allowStudent ? "Student" : "School Head"}
+            </span>
+          )}
         </div>
       </section>
 

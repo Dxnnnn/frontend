@@ -1,6 +1,19 @@
 import { NextResponse } from "next/server";
-
+import { cookies } from "next/headers";
 import type { AuthUser } from "@/lib/types/auth";
+
+/** GET /api/auth/session — returns the current session user (reads httpOnly cookie server-side) */
+export async function GET() {
+  try {
+    const cookieStore = await cookies();
+    const raw = cookieStore.get("eval_session")?.value;
+    if (!raw) return NextResponse.json({ user: null }, { status: 401 });
+    const user = JSON.parse(raw) as AuthUser;
+    return NextResponse.json({ user });
+  } catch {
+    return NextResponse.json({ user: null }, { status: 401 });
+  }
+}
 
 export async function POST(request: Request) {
   let body: { user?: AuthUser };

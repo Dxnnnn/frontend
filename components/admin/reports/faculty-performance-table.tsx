@@ -7,8 +7,6 @@ import { getSchoolHeadSubmissionsAsync } from "@/lib/faculty-portal/coordinator-
 import { onEvaluationsUpdated } from "@/lib/admin/evaluation-events";
 import { useIsClient } from "@/lib/hooks/use-is-client";
 import type { EvaluationSubmission } from "@/lib/types/evaluation-submission";
-import type { TeacherScore } from "@/lib/types/teacher-score";
-import type { ScoreDistribution, ScoreLevelKey } from "@/lib/types/teacher-score";
 
 function scoreBadge(s: number) {
   if (s >= 4.5) return "bg-emerald-100 text-emerald-700";
@@ -38,72 +36,53 @@ function departmentMatches(facultyDept: string, filter: string): boolean {
 
 interface FacultyRow {
   id: string;
+  rowKey: string; // facultyId::subject
   name: string;
   department: string;
-  subjects: string[];
+  subject: string;
   avgRating: number;
   totalResponses: number;
   evaluationCount: number;
 }
 
-function buildTeacherScores(submissions: EvaluationSubmission[]): TeacherScore[] {
+function buildRows(submissions: EvaluationSubmission[]): FacultyRow[] {
   if (submissions.length === 0) return [];
 
+  // Group by facultyId + subject
   const grouped = new Map<string, EvaluationSubmission[]>();
   for (const sub of submissions) {
-    const key = String(sub.facultyId);
+    const key = `${String(sub.facultyId)}::${sub.subject ?? "—"}`;
     const existing = grouped.get(key) ?? [];
     existing.push(sub);
     grouped.set(key, existing);
   }
 
-  const scores: TeacherScore[] = [];
-
-  for (const [facultyId, subs] of grouped) {
+  const rows: FacultyRow[] = [];
+  for (const [key, subs] of grouped) {
     const first = subs[0];
-    const distribution: ScoreDistribution = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0, 0: 0 };
-
     let totalScore = 0;
     let totalAnswers = 0;
-
     for (const sub of subs) {
       for (const v of Object.values(sub.scoringAnswers)) {
-        const rounded = Math.round(v) as ScoreLevelKey;
-        const key = (rounded >= 0 && rounded <= 5 ? rounded : 0) as ScoreLevelKey;
-        distribution[key] = (distribution[key] ?? 0) + 1;
         totalScore += v;
         totalAnswers += 1;
       }
     }
-
-    scores.push({
-      id: facultyId,
+    const avgRating = totalAnswers > 0 ? totalScore / totalAnswers : 0;
+    const totalResponses = subs.reduce((acc, s) => acc + Object.keys(s.scoringAnswers).length, 0);
+    rows.push({
+      id: String(first.facultyId),
+      rowKey: key,
       name: first.facultyName,
       department: first.department,
-      overallScore: totalAnswers > 0 ? totalScore / totalAnswers : 0,
+      subject: first.subject ?? "—",
+      avgRating,
+      totalResponses,
       evaluationCount: subs.length,
-      scoreDistribution: distribution,
     });
   }
 
-  return scores.sort((a, b) => b.overallScore - a.overallScore);
-}
-
-function buildRows(submissions: EvaluationSubmission[], teachers: TeacherScore[]): FacultyRow[] {
-  return teachers.map((t) => {
-    const subs = submissions.filter((s) => String(s.facultyId) === String(t.id));
-    const subjects = [...new Set(subs.map((s) => s.subject).filter((s) => s && s !== "—"))];
-    const totalResponses = subs.reduce((acc, s) => acc + Object.keys(s.scoringAnswers).length, 0);
-    return {
-      id: t.id,
-      name: t.name,
-      department: t.department,
-      subjects,
-      avgRating: t.overallScore,
-      totalResponses,
-      evaluationCount: t.evaluationCount,
-    };
-  });
+  return rows.sort((a, b) => b.avgRating - a.avgRating);
 }
 
 export interface FacultyPerformanceTableProps {
@@ -158,8 +137,7 @@ export function FacultyPerformanceTable({
         all = all.filter((s) => departmentMatches(s.department, departmentFilter));
       }
 
-      const teachers = buildTeacherScores(all);
-      setRows(buildRows(all, teachers));
+      setRows(buildRows(all));
     }
 
     void refresh();
@@ -172,7 +150,8 @@ export function FacultyPerformanceTable({
 
   const filtered = rows.filter((r) =>
     r.name.toLowerCase().includes(search.toLowerCase()) ||
-    r.department.toLowerCase().includes(search.toLowerCase())
+    r.department.toLowerCase().includes(search.toLowerCase()) ||
+    r.subject.toLowerCase().includes(search.toLowerCase())
   );
 
   if (!mounted) {
@@ -265,7 +244,7 @@ export function FacultyPerformanceTable({
                 <tr className="border-b border-slate-100 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
                   <th className="px-6 py-4 text-left">Faculty</th>
                   <th className="px-6 py-4 text-left">Department</th>
-                  <th className="px-6 py-4 text-left">Subject(s)</th>
+                  <th className="px-6 py-4 text-left">Subject</th>
                   <th className="px-6 py-4 text-left">Avg Rating</th>
                   <th className="px-6 py-4 text-left">Responses</th>
                   <th className="px-6 py-4 text-left">Evaluations</th>
@@ -275,7 +254,7 @@ export function FacultyPerformanceTable({
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filtered.map((row, i) => (
-                  <tr key={row.id} className="transition-colors hover:bg-slate-50">
+                  <tr key={row.rowKey} className="transition-colors hover:bg-slate-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
@@ -289,16 +268,9 @@ export function FacultyPerformanceTable({
                     </td>
                     <td className="px-6 py-4 text-slate-600">{row.department}</td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {row.subjects.length === 0 ? (
-                          <span className="text-slate-400">—</span>
-                        ) : row.subjects.slice(0, 2).map((s) => (
-                          <span key={s} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{s}</span>
-                        ))}
-                        {row.subjects.length > 2 && (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-400">+{row.subjects.length - 2}</span>
-                        )}
-                      </div>
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+                        {row.subject}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -318,7 +290,7 @@ export function FacultyPerformanceTable({
                     <td className="px-6 py-4 text-right">
                       <button
                         type="button"
-                        onClick={() => router.push(`${reportBasePath}/${row.id}${source === "school_head" ? "?source=school_head" : ""}`)}
+                        onClick={() => router.push(`${reportBasePath}/${row.id}?subject=${encodeURIComponent(row.subject)}${source === "school_head" ? "&source=school_head" : ""}`)}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-blue-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-800"
                       >
                         View Report

@@ -418,8 +418,8 @@ export function FacultyList({ refreshKey }: FacultyListProps) {
                     <td className="px-6 py-4 max-w-xs">
                       {member.subjects ? (
                         <div className="flex flex-wrap gap-1">
-                          {member.subjects.split(",").map(s => s.trim()).filter(Boolean).map(s => (
-                            <span key={s} className="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{s}</span>
+                          {member.subjects.split(",").map(s => s.trim()).filter(Boolean).map((s, i) => (
+                            <span key={`${s}-${i}`} className="inline-block rounded-md bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{s}</span>
                           ))}
                         </div>
                       ) : "—"}

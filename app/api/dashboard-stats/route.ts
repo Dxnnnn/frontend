@@ -7,12 +7,13 @@ export async function GET() {
   try {
     const headers = await getAuthHeaders();
 
-    const [studentsRes, facultyRes, evaluationsRes, semestersRes, subjectsRes] = await Promise.all([
+    const [studentsRes, facultyRes, evaluationsRes, semestersRes, subjectsRes, schoolHeadsRes] = await Promise.all([
       fetch(`${BACKEND}/api/students`, { cache: "no-store", headers }),
       fetch(`${BACKEND}/api/faculty`, { cache: "no-store" }),
       fetch(`${BACKEND}/api/evaluations?source=all`, { cache: "no-store", headers }),
       fetch(`${BACKEND}/api/semesters`, { cache: "no-store" }),
       fetch(`${BACKEND}/api/subjects`, { cache: "no-store" }),
+      fetch(`${BACKEND}/api/school-heads`, { cache: "no-store", headers }),
     ]);
 
     const studentsData = await studentsRes.json() as { students?: Array<{ student_level: string }> };
@@ -20,12 +21,14 @@ export async function GET() {
     const evaluationsData = await evaluationsRes.json() as { submissions?: Array<{ department: string; source: string; facultyId: number; facultyName: string; scoringAnswers: Record<string, number> }> };
     const semestersData = await semestersRes.json() as { semesters?: Array<{ id: string; schoolYear: string; term: string; isActive: boolean }> };
     const subjectsData = await subjectsRes.json() as { subjects?: unknown[] };
+    const schoolHeadsData = await schoolHeadsRes.json() as { schoolHeads?: unknown[] };
 
     const students = studentsData.students ?? [];
     const faculty = facultyData.faculty ?? [];
     const submissions = evaluationsData.submissions ?? [];
     const semesters = semestersData.semesters ?? [];
     const totalSubjects = subjectsData.subjects?.length ?? 0;
+    const totalSchoolHeads = schoolHeadsData.schoolHeads?.length ?? 0;
 
     // Active semester
     const activeSemester = semesters.find((s) => s.isActive);
@@ -78,6 +81,7 @@ export async function GET() {
       success: true,
       totalStudents: students.length,
       totalFaculty: faculty.length,
+      totalSchoolHeads,
       totalSubjects,
       totalEvaluations: submissions.length,
       studentSubmissions,

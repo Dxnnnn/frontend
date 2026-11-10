@@ -205,6 +205,25 @@ function EditStudentModal({
   const gradeOptions = getGradesForLevel(level as Parameters<typeof getGradesForLevel>[0]);
   const isCollege = level === "college";
 
+  const [editSubjects, setEditSubjects] = useState<string[]>(
+    student.subjects ? student.subjects.split(",").map((s) => s.trim()).filter(Boolean) : []
+  );
+  const [editSubjectOptions, setEditSubjectOptions] = useState<Array<{
+    id: number; name: string; facultyName: string | null;
+    roomNo: string | null; scheduleDay: string | null; scheduleTime: string | null; section: string | null;
+  }>>([]);
+
+  useEffect(() => {
+    if (isCollege) {
+      fetch(`/api/subjects?department=college`, { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d: { subjects?: Array<{ id: number; name: string; facultyName: string | null; roomNo: string | null; scheduleDay: string | null; scheduleTime: string | null; section: string | null }> }) => {
+          setEditSubjectOptions((d.subjects ?? []).filter((s) => !!s.facultyName));
+        })
+        .catch(() => setEditSubjectOptions([]));
+    }
+  }, [isCollege]);
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     if (!studentId.trim() || !firstName.trim() || !lastName.trim() || !email.trim()) {
@@ -223,6 +242,7 @@ function EditStudentModal({
         year_level: isCollege ? yearLevel : null,
         section, strand: level === "senior-high" ? strand : null,
         course: isCollege ? course : null,
+        subjects: isCollege && editSubjects.length > 0 ? editSubjects : null,
       }),
     });
     setSaving(false);
@@ -296,6 +316,51 @@ function EditStudentModal({
             />
           </div>
           {error && <p className="sm:col-span-2 text-xs text-red-600">{error}</p>}
+          {/* Subject cards for college */}
+          {isCollege && editSubjectOptions.length > 0 && (
+            <div className="sm:col-span-2 space-y-2">
+              <label className="block text-xs font-medium text-slate-700">Subjects</label>
+              <div className="grid gap-2 sm:grid-cols-2 max-h-64 overflow-y-auto pr-1">
+                {editSubjectOptions.map((s) => {
+                  const isSelected = editSubjects.includes(s.name);
+                  return (
+                    <button key={s.id} type="button"
+                      onClick={() => setEditSubjects((prev) =>
+                        prev.includes(s.name) ? prev.filter((x) => x !== s.name) : [...prev, s.name]
+                      )}
+                      className={`flex items-start gap-2.5 rounded-xl border-2 p-3 text-left transition ${
+                        isSelected
+                          ? "border-brand-600 bg-brand-50"
+                          : "border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      {/* Native checkbox — clearly shows checked state */}
+                      <input
+                        type="checkbox"
+                        readOnly
+                        checked={isSelected}
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded accent-brand-700 cursor-pointer"
+                        tabIndex={-1}
+                      />
+                      <div className="min-w-0 space-y-0.5">
+                        <p className={`text-xs font-semibold ${isSelected ? "text-brand-800" : "text-slate-900"}`}>{s.name}</p>
+                        {s.facultyName && <p className="text-[11px] text-slate-500">👤 {s.facultyName}</p>}
+                        {s.roomNo && <p className="text-[11px] text-slate-500">📍 Room {s.roomNo}</p>}
+                        {(s.scheduleDay || s.scheduleTime) && (
+                          <p className="text-[11px] text-slate-500">🕐 {[s.scheduleDay, s.scheduleTime].filter(Boolean).join(" · ")}</p>
+                        )}
+                        {s.section && <span className={`inline-block rounded-full px-1.5 py-0.5 text-[10px] font-medium ${isSelected ? "bg-brand-100 text-brand-700" : "bg-slate-100 text-slate-500"}`}>Sec {s.section}</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {editSubjects.length > 0 && (
+                <p className="text-xs text-slate-500">{editSubjects.length} selected: <span className="font-medium text-brand-700">{editSubjects.join(", ")}</span></p>
+              )}
+            </div>
+          )}
+          {error && <p className="sm:col-span-2 text-xs text-red-600 hidden">{error}</p>}
           <div className="sm:col-span-2 flex gap-2 pt-1">
             <button type="button" onClick={onClose} className="flex-1 rounded-xl border border-slate-200 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">Cancel</button>
             <button type="submit" disabled={saving} className="flex-1 rounded-xl bg-brand-700 py-2 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-70">{saving ? "Saving..." : "Save"}</button>

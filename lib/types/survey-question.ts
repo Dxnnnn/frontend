@@ -5,12 +5,13 @@ export type StudentLevel = "all" | "junior-high" | "senior-high" | "college";
 export type QuestionSection = "scoring" | "personal";
 
 export type QuestionCategory =
-  | "Instructional Competence"
-  | "Professionalism"
+  | "Instructional Design"
+  | "Delivery of Instruction"
+  | "Evaluation"
   | "Communication"
   | "Classroom Management"
-  | "Assessment"
-  | "Other";
+  | "Personal and Professional Qualities"
+  | "Others";
 
 export type EvaluationType = "rating" | "essay" | "yes_no";
 
@@ -63,12 +64,13 @@ export const questionSectionLabels: Record<QuestionSection, string> = {
 };
 
 export const questionCategories: QuestionCategory[] = [
-  "Instructional Competence",
-  "Professionalism",
+  "Instructional Design",
+  "Delivery of Instruction",
+  "Evaluation",
   "Communication",
   "Classroom Management",
-  "Assessment",
-  "Other",
+  "Personal and Professional Qualities",
+  "Others",
 ];
 
 export const evaluationTypeLabels: Record<EvaluationType, string> = {
@@ -85,10 +87,11 @@ export const studentLevelLabels: Record<StudentLevel, string> = {
 };
 
 export const categoryColors: Record<QuestionCategory, string> = {
-  "Instructional Competence": "bg-blue-100 text-blue-700",
-  "Professionalism": "bg-violet-100 text-violet-700",
+  "Instructional Design": "bg-blue-100 text-blue-700",
+  "Delivery of Instruction": "bg-indigo-100 text-indigo-700",
+  "Evaluation": "bg-pink-100 text-pink-700",
   "Communication": "bg-emerald-100 text-emerald-700",
   "Classroom Management": "bg-orange-100 text-orange-700",
-  "Assessment": "bg-pink-100 text-pink-700",
-  "Other": "bg-slate-100 text-slate-600",
+  "Personal and Professional Qualities": "bg-violet-100 text-violet-700",
+  "Others": "bg-slate-100 text-slate-600",
 };

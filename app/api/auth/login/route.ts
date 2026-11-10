@@ -44,6 +44,7 @@ export async function POST(request: Request) {
         email: string;
         full_name: string;
         role: string;
+        admin_role?: string;
       };
     };
 
@@ -54,11 +55,30 @@ export async function POST(request: Request) {
       );
     }
 
+    // Keep all three roles as-is: "Super Admin", "Executive Office", "Data Center"
+    const rawAdminRole = data.user.admin_role ?? "Super Admin";
+
+    // For EO/DC accounts: fetch their permissions so they can be embedded in the session
+    let permissionsMap: Record<string, boolean> = {};
+    if (rawAdminRole !== "Super Admin" && data.token) {
+      try {
+        const permRes = await fetch(`${BACKEND}/api/admins/${data.user.id}/permissions`, {
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.token}` },
+        });
+        if (permRes.ok) {
+          const permData = await permRes.json() as { permissions?: Record<string, boolean> };
+          permissionsMap = permData.permissions ?? {};
+        }
+      } catch { /* non-fatal */ }
+    }
+
     const user = {
       id: String(data.user.id),
       username: data.user.email,
       name: data.user.full_name || data.user.username,
       role: (data.user.role ?? "admin") as UserRole,
+      adminRole: rawAdminRole as import("@/lib/types/auth").AdminSubRole,
+      permissions: permissionsMap,
     };
 
     const sessionMaxAge = body.rememberMe ? 60 * 60 * 24 * 30 : undefined;

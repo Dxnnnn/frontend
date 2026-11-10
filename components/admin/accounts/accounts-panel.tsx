@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AccountAudienceSwitch } from "@/components/admin/accounts/account-audience-switch";
 import { AccountCreateModal } from "@/components/admin/accounts/account-create-modal";
@@ -9,8 +9,22 @@ import { PasswordSuccessModal } from "@/components/admin/accounts/password-succe
 import type { StudentLevel } from "@/lib/accounts/student-options";
 import type { AccountRole } from "@/lib/types/account";
 
-export function AccountsPanel() {
-  const [role, setRole] = useState<AccountRole>("user");
+interface AccountsPanelProps {
+  /** When true, only show Student tab (for permission-restricted access) */
+  allowStudent?: boolean;
+  /** When true, only show School Head tab (for permission-restricted access) */
+  allowSchoolHead?: boolean;
+}
+
+export function AccountsPanel({ allowStudent, allowSchoolHead }: AccountsPanelProps) {
+  // Determine which tabs are visible — if neither prop is passed, show both (Super Admin / unrestricted)
+  const showStudent    = allowStudent    !== false;
+  const showSchoolHead = allowSchoolHead !== false;
+
+  // Pick the correct default tab based on what's allowed
+  const defaultRole: AccountRole = showStudent ? "user" : "faculty";
+
+  const [role, setRole]             = useState<AccountRole>(defaultRole);
   const [studentLevel, setStudentLevel] = useState<StudentLevel>("elementary");
   const [refreshKey, setRefreshKey] = useState(0);
   const [createOpen, setCreateOpen] = useState(false);
@@ -22,11 +36,23 @@ export function AccountsPanel() {
     loginLabel: string;
   } | null>(null);
 
+  // If permissions change (e.g. Super Admin revokes access while user is on the page),
+  // snap to an allowed tab
+  useEffect(() => {
+    if (role === "user"    && !showStudent)    setRole("faculty");
+    if (role === "faculty" && !showSchoolHead) setRole("user");
+  }, [showStudent, showSchoolHead, role]);
+
   const isStudent = role === "user";
+
+  // Filter audience options to only the ones the user can access
+  const filteredAudiences: AccountRole[] = [
+    ...(showStudent    ? (["user"]    as AccountRole[]) : []),
+    ...(showSchoolHead ? (["faculty"] as AccountRole[]) : []),
+  ];
 
   return (
     <>
-      {/* Password modal lives here — persists after create modal closes */}
       {successData && (
         <PasswordSuccessModal
           title={successData.title}
@@ -39,7 +65,20 @@ export function AccountsPanel() {
       )}
 
       <div className="space-y-6">
-        <AccountAudienceSwitch audience={role} onChange={setRole} />
+        {/* Only render the switcher when the user can see both tabs */}
+        {showStudent && showSchoolHead ? (
+          <AccountAudienceSwitch audience={role} onChange={setRole} />
+        ) : (
+          /* Single-tab header — no switcher needed */
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-sm font-semibold text-slate-900">Accounts for</p>
+            <p className="mt-1 text-sm text-slate-500">
+              {showStudent
+                ? "Manage student login accounts with ID# and password."
+                : "Manage school head login accounts for each department."}
+            </p>
+          </div>
+        )}
 
         <section className="space-y-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

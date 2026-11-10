@@ -125,8 +125,17 @@ function PreviewModal({
 }
 
 // ── Main panel ────────────────────────────────────────────────────────────────
-export function SurveyQuestionsPanel() {
-  const [audience, setAudience] = useState<SurveyAudience>("student");
+interface SurveyQuestionsPanelProps {
+  allowStudent?:    boolean;
+  allowSchoolHead?: boolean;
+}
+
+export function SurveyQuestionsPanel({
+  allowStudent    = true,
+  allowSchoolHead = true,
+}: SurveyQuestionsPanelProps) {
+  const defaultAudience: SurveyAudience = allowStudent ? "student" : "school_head";
+  const [audience, setAudience] = useState<SurveyAudience>(defaultAudience);
   const [studentLevel, setStudentLevel] = useState<StudentLevel>("junior-high");
   const [section] = useState<QuestionSection>("scoring");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -149,6 +158,7 @@ export function SurveyQuestionsPanel() {
   }, []);
 
   useEffect(() => {
+    setStats({ total: 0, active: 0, inactive: 0, categories: 0, lastUpdated: null });
     void (async () => {
       const currentLevel = audience === "student" ? studentLevel : undefined;
       const stats = await getQuestionStats(audience, currentLevel);
@@ -228,8 +238,10 @@ export function SurveyQuestionsPanel() {
   return (
     <>
       <div className="space-y-6">
-        {/* Audience switch only */}
-        <QuestionnaireAudienceSwitch audience={audience} onChange={(a) => { setAudience(a); }} />
+        {/* Audience switch — only show when both are allowed */}
+        {allowStudent && allowSchoolHead && (
+          <QuestionnaireAudienceSwitch audience={audience} onChange={(a) => { setAudience(a); }} />
+        )}
 
         {/* Student level tabs — only shown when audience = student */}
         {audience === "student" && (

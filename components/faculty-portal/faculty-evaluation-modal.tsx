@@ -36,7 +36,8 @@ export function FacultyEvaluationModal({
 }: FacultyEvaluationModalProps) {
   const [questions, setQuestions] = useState<SurveyQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [remarks, setRemarks] = useState("");
+  const [goodRemarks, setGoodRemarks] = useState("");
+  const [badRemarks, setBadRemarks] = useState("");
   const [semester, setSemester] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -107,7 +108,10 @@ export function FacultyEvaluationModal({
         department: faculty.department,
         subject: subject || "General",
         semester,
-        remarks: remarks.trim() || undefined,
+        remarks: [
+          goodRemarks.trim() ? `[Strengths] ${goodRemarks.trim()}` : "",
+          badRemarks.trim()  ? `[Areas for Improvement] ${badRemarks.trim()}` : "",
+        ].filter(Boolean).join(" | ") || undefined,
         scoringAnswers: answers,
         personalAnswers: {},
       });
@@ -239,14 +243,42 @@ export function FacultyEvaluationModal({
               ))}
 
               {/* Remarks */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Remarks <span className="text-slate-400 font-normal text-xs">(optional)</span>
-                </label>
-                <textarea value={remarks} onChange={(e) => setRemarks(e.target.value)}
-                  rows={3}
-                  placeholder={`Write your professional assessment of ${faculty.name}...`}
-                  className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100" />
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-slate-700">Remarks</p>
+
+                {/* Strengths */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 mb-1.5">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                    </svg>
+                    Strengths <span className="font-normal text-emerald-500">(optional)</span>
+                  </label>
+                  <textarea
+                    value={goodRemarks}
+                    onChange={(e) => setGoodRemarks(e.target.value)}
+                    rows={2}
+                    placeholder={`What does ${faculty.name} do well?`}
+                    className="w-full resize-none rounded-xl border border-emerald-200 bg-emerald-50/40 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  />
+                </div>
+
+                {/* Areas for Improvement / Recommendations */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-red-600 mb-1.5">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10 14H5.236a2 2 0 01-1.789-2.894l3.5-7A2 2 0 018.736 3h4.018a2 2 0 01.485.06l3.76.94m-7 10v5a2 2 0 002 2h.095c.5 0 .905-.405.905-.904 0-.715.211-1.413.608-2.008L17 13V4m-7 10h2m5-10h2a2 2 0 012 2v6a2 2 0 01-2 2h-2.5" />
+                    </svg>
+                    Areas for Improvement / Recommendations <span className="font-normal text-red-400">(optional)</span>
+                  </label>
+                  <textarea
+                    value={badRemarks}
+                    onChange={(e) => setBadRemarks(e.target.value)}
+                    rows={2}
+                    placeholder={`What areas should ${faculty.name} improve?`}
+                    className="w-full resize-none rounded-xl border border-red-200 bg-red-50/40 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-red-400 focus:ring-4 focus:ring-red-100"
+                  />
+                </div>
               </div>
 
               {/* Professional Certification */}

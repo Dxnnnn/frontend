@@ -256,14 +256,16 @@ interface StudentInfo {
   section: string;
   course: string;
   year_level: string;
+  is_irregular: boolean;
+  subjects: string | null;
 }
 
 function getStudentInfo(): StudentInfo {
-  if (typeof document === "undefined") return { student_level: "", grade: "", strand: "", section: "", course: "", year_level: "" };
+  if (typeof document === "undefined") return { student_level: "", grade: "", strand: "", section: "", course: "", year_level: "", is_irregular: false, subjects: null };
   try {
     const raw = document.cookie.split("; ").find((c) => c.startsWith("eval_user_info="))?.split("=").slice(1).join("=");
-    if (!raw) return { student_level: "", grade: "", strand: "", section: "", course: "", year_level: "" };
-    const info = JSON.parse(decodeURIComponent(raw)) as { student_level?: string; grade?: string; strand?: string; year_level?: string; section?: string; course?: string };
+    if (!raw) return { student_level: "", grade: "", strand: "", section: "", course: "", year_level: "", is_irregular: false, subjects: null };
+    const info = JSON.parse(decodeURIComponent(raw)) as { student_level?: string; grade?: string; strand?: string; year_level?: string; section?: string; course?: string; is_irregular?: boolean; subjects?: string | null };
     return {
       student_level: info.student_level ?? "",
       grade: info.grade ?? info.year_level ?? "",
@@ -271,9 +273,11 @@ function getStudentInfo(): StudentInfo {
       section: info.section ?? "",
       course: info.course ?? "",
       year_level: info.year_level ?? "",
+      is_irregular: info.is_irregular ?? false,
+      subjects: info.subjects ?? null,
     };
   } catch {
-    return { student_level: "", grade: "", strand: "", section: "", course: "", year_level: "" };
+    return { student_level: "", grade: "", strand: "", section: "", course: "", year_level: "", is_irregular: false, subjects: null };
   }
 }
 
@@ -332,7 +336,7 @@ export function EvaluationFormPanel({
   const hasQuestions = useMemo(() => scoringQuestions.length > 0, [scoringQuestions.length]);
 
   const [studentInfo] = useState<StudentInfo>(() =>
-    typeof window !== "undefined" ? getStudentInfo() : { student_level: "", grade: "", strand: "", section: "", course: "", year_level: "" }
+    typeof window !== "undefined" ? getStudentInfo() : { student_level: "", grade: "", strand: "", section: "", course: "", year_level: "", is_irregular: false, subjects: null }
   );
   const studentLevel = studentInfo.student_level;
   const isElemOrJH = studentLevel === "elementary";
@@ -385,18 +389,29 @@ export function EvaluationFormPanel({
         // Build query parameters based on student info
         const params = new URLSearchParams();
         params.set("student_level", studentLevel);
+
+        // Pass is_irregular flag — irregular students skip section filtering
+        if (studentInfo.is_irregular) {
+          params.set("is_irregular", "true");
+        }
+
+        // If student has specific subjects saved, pass them to filter teachers
+        if (studentInfo.subjects) {
+          params.set("subjects", studentInfo.subjects);
+        }
         
         if (studentLevel === "college") {
           if (studentInfo.year_level) params.set("year_level", studentInfo.year_level);
           if (studentInfo.course) params.set("course", studentInfo.course);
-          if (studentInfo.section) params.set("section", studentInfo.section);
+          // Only pass section for regular students
+          if (studentInfo.section && !studentInfo.is_irregular) params.set("section", studentInfo.section);
         } else if (studentLevel === "senior-high") {
           if (studentInfo.grade) params.set("grade", studentInfo.grade);
           if (studentInfo.strand) params.set("strand", studentInfo.strand);
-          if (studentInfo.section) params.set("section", studentInfo.section);
+          if (studentInfo.section && !studentInfo.is_irregular) params.set("section", studentInfo.section);
         } else if (studentLevel === "junior-high") {
           if (studentInfo.grade) params.set("grade", studentInfo.grade);
-          if (studentInfo.section) params.set("section", studentInfo.section);
+          if (studentInfo.section && !studentInfo.is_irregular) params.set("section", studentInfo.section);
         }
         
         // Add semester filter
@@ -409,12 +424,18 @@ export function EvaluationFormPanel({
         // Use the new endpoint that filters by student criteria
         const url = `/api/faculty/for-student?${params}`;
         const res = await fetch(url, { cache: "no-store" });
-        const data = await res.json() as { success?: boolean; faculty?: Array<{ id: number; name: string; department: string; subjects: string; subjectDetails?: Array<{ name: string; roomNo: string | null; scheduleDay: string | null; scheduleTime: string | null }>; semester: string | null; is_active: number; created_at: string; profile_image?: string | null }> };
+        const data = await res.json() as { success?: boolean; faculty?: Array<{ id: number; name: string; department: string; subjects: string; subjectDetails?: Array<{ name: string; roomNo: string | null; scheduleDay: string | null; scheduleTime: string | null }>; matchedSubjects?: Array<{ name: string; roomNo: string | null; scheduleDay: string | null; scheduleTime: string | null }>; semester: string | null; is_active: number; created_at: string; profile_image?: string | null }> };
         
         const backendFaculty: Faculty[] = (data.faculty ?? []).filter((f) => f.is_active !== 0).map((f) => ({
           id: String(f.id), name: f.name, department: f.department,
           subjects: f.subjects ? f.subjects.split(",").map((s) => s.trim()).filter(Boolean) : [],
-          subjectDetails: f.subjectDetails ?? [],
+          // Backend returns matchedSubjects when filtering by saved subjects, subjectDetails otherwise
+          subjectDetails: (f.matchedSubjects ?? f.subjectDetails ?? []).map((d: { name: string; roomNo?: string | null; scheduleDay?: string | null; scheduleTime?: string | null }) => ({
+            name: d.name,
+            roomNo: d.roomNo ?? null,
+            scheduleDay: d.scheduleDay ?? null,
+            scheduleTime: d.scheduleTime ?? null,
+          })),
           semester: f.semester ?? undefined, createdAt: f.created_at,
           profile_image: f.profile_image ?? null,
         }));

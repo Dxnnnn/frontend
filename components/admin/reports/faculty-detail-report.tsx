@@ -71,19 +71,23 @@ function overallComment(s: number): string {
 
 /** Display names for the official printed report */
 const CATEGORY_PRINT_LABELS: Partial<Record<QuestionCategory, string>> = {
-  "Instructional Competence": "Instructional Competence",
-  Professionalism: "Professionalism",
-  Communication: "Communication Skills",
+  "Instructional Design": "Instructional Design",
+  "Delivery of Instruction": "Delivery of Instruction",
+  "Evaluation": "Evaluation",
+  "Communication": "Communication",
   "Classroom Management": "Classroom Management",
-  Assessment: "Assessment Practices",
+  "Personal and Professional Qualities": "Personal and Professional Qualities",
+  "Others": "Others",
 };
 
 const PRINT_CATEGORY_ORDER: QuestionCategory[] = [
-  "Instructional Competence",
-  "Professionalism",
+  "Instructional Design",
+  "Delivery of Instruction",
+  "Evaluation",
   "Communication",
   "Classroom Management",
-  "Assessment",
+  "Personal and Professional Qualities",
+  "Others",
 ];
 
 // ── CSV Export ─────────────────────────────────────────────────────────────────
@@ -122,6 +126,7 @@ export function FacultyDetailReport({
   backHref,
   preparerName: preparerNameProp,
   preparerDepartment: preparerDepartmentProp,
+  subjectFilter,
 }: {
   facultyId: string;
   /** Include school-head evaluations alongside student submissions */
@@ -132,6 +137,8 @@ export function FacultyDetailReport({
   preparerName?: string;
   /** Logged-in school head department (used to resolve Dean / School Head title) */
   preparerDepartment?: string;
+  /** Filter report to a specific subject only */
+  subjectFilter?: string;
 }) {
   const router = useRouter();
   const [subs, setSubs] = useState<EvaluationSubmission[]>([]);
@@ -160,7 +167,12 @@ export function FacultyDetailReport({
           : Promise.resolve([] as EvaluationSubmission[]),
       ]);
       const all = [...studentSubs, ...(includeSchoolHead ? shSubs : [])];
-      setSubs(all.filter((s) => String(s.facultyId) === String(facultyId)));
+      const byfaculty = all.filter((s) => String(s.facultyId) === String(facultyId));
+      // Filter to specific subject if provided
+      setSubs(subjectFilter
+        ? byfaculty.filter((s) => s.subject?.trim().toLowerCase() === subjectFilter.trim().toLowerCase())
+        : byfaculty
+      );
 
       const qs = await loadQuestions();
       setQuestions(
@@ -191,7 +203,7 @@ export function FacultyDetailReport({
       .catch(() => {
         /* position stays blank on the printed form */
       });
-  }, [facultyId, includeSchoolHead]);
+  }, [facultyId, includeSchoolHead, subjectFilter]);
 
   if (!mounted) {
     return (
@@ -286,6 +298,23 @@ export function FacultyDetailReport({
 
   // Comments
   const comments = subs.filter((s) => s.remarks && s.remarks.trim()).map((s) => s.remarks!.trim());
+
+  // Parse written remarks from school head submissions
+  // Format: "[Strengths] text | [Areas for Improvement] text"
+  const writtenStrengths: string[] = [];
+  const writtenAreas: string[] = [];
+  for (const c of comments) {
+    const parts = c.split("|").map((p) => p.trim());
+    for (const part of parts) {
+      if (part.startsWith("[Strengths]")) {
+        const text = part.replace("[Strengths]", "").trim();
+        if (text) writtenStrengths.push(text);
+      } else if (part.startsWith("[Areas for Improvement]")) {
+        const text = part.replace("[Areas for Improvement]", "").trim();
+        if (text) writtenAreas.push(text);
+      }
+    }
+  }
 
   const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
   const primarySemester = semesters[0] ?? "1st Semester";
@@ -460,11 +489,38 @@ export function FacultyDetailReport({
 
           <p className="print-comment">{overallComment(overallAvg)}</p>
 
+          {/* Written remarks from school head evaluations */}
+          {writtenStrengths.length > 0 && (
+            <>
+              <div className="print-rule" />
+              <h2 className="print-section">EVALUATOR&apos;S REMARKS — STRENGTHS</h2>
+              <div className="print-rule" />
+              <ul className="print-bullets">
+                {writtenStrengths.map((s, i) => (
+                  <li key={i}>{s.endsWith(".") ? s : `${s}.`}</li>
+                ))}
+              </ul>
+            </>
+          )}
+
+          {writtenAreas.length > 0 && (
+            <>
+              <div className="print-rule" />
+              <h2 className="print-section">EVALUATOR&apos;S REMARKS — AREAS FOR IMPROVEMENT / RECOMMENDATIONS</h2>
+              <div className="print-rule" />
+              <ul className="print-bullets">
+                {writtenAreas.map((s, i) => (
+                  <li key={i}>{s.endsWith(".") ? s : `${s}.`}</li>
+                ))}
+              </ul>
+            </>
+          )}
+
           <div className="print-rule" />
 
           <div className="print-signatures">
             <div className="print-sig-col">
-              <p className="print-sig-label">Prepared by:</p>
+              <p className="print-sig-label">Evaluated by:</p>
               <div className="print-sig-line" />
               {preparerName ? (
                 <p className="print-sig-name">{preparerName}</p>

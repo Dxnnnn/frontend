@@ -8,12 +8,14 @@ export default function FacultyReportPage({ params }: { params: Promise<{ facult
   const { facultyId } = use(params);
   const searchParams = useSearchParams();
   const source = searchParams.get("source");
+  const subject = searchParams.get("subject");
   const includeSchoolHead = source === "school_head";
 
   return (
     <FacultyDetailReport
       facultyId={facultyId}
       includeSchoolHead={includeSchoolHead}
+      subjectFilter={subject ?? undefined}
     />
   );
 }
