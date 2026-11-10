@@ -76,6 +76,7 @@ export async function POST(request: Request) {
       id: String(data.user.id),
       username: data.user.email,
       name: data.user.full_name || data.user.username,
+      email: data.user.email,
       role: (data.user.role ?? "admin") as UserRole,
       adminRole: rawAdminRole as import("@/lib/types/auth").AdminSubRole,
       permissions: permissionsMap,

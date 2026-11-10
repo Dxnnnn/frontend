@@ -165,6 +165,8 @@ export function SettingsPanel({ currentAdminName, currentAdminEmail }: SettingsP
   const [pwSuccess, setPwSuccess] = useState("");
   const [pwSaving, setPwSaving] = useState(false);
 
+  const [resetResult, setResetResult] = useState<{ name: string; password: string } | null>(null);
+
   function loadAdmins() {
     setLoading(true);
     fetch("/api/admins", { cache: "no-store" })
@@ -175,6 +177,14 @@ export function SettingsPanel({ currentAdminName, currentAdminEmail }: SettingsP
   }
 
   useEffect(() => { loadAdmins(); }, []);
+
+  async function handleResetPassword(id: number, name: string) {
+    if (!window.confirm(`Reset password for "${name}"? A new temporary password will be generated.`)) return;
+    const res = await fetch(`/api/admins/${id}/reset-password`, { method: "POST" });
+    const data = await res.json() as { success?: boolean; generatedPassword?: string; message?: string };
+    if (!res.ok || !data.success) { window.alert(data.message ?? "Failed to reset password."); return; }
+    setResetResult({ name, password: data.generatedPassword ?? "" });
+  }
 
   async function handleToggle(id: number) {
     const res = await fetch(`/api/admins/${id}`, { method: "PATCH" });
@@ -229,6 +239,39 @@ export function SettingsPanel({ currentAdminName, currentAdminEmail }: SettingsP
           adminRole={permAdmin.role}
           onClose={() => setPermAdmin(null)}
         />
+      )}
+
+      {/* Reset Password Result Modal */}
+      {resetResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button type="button" className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={() => setResetResult(null)} aria-label="Close" />
+          <div className="relative z-10 w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-6 w-6 text-emerald-600" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
+              </svg>
+            </div>
+            <h3 className="text-base font-semibold text-slate-900">Password Reset</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              New temporary password for <span className="font-semibold text-slate-700">{resetResult.name}</span>:
+            </p>
+            <div className="mt-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <code className="flex-1 text-sm font-bold text-slate-900 tracking-wide">{resetResult.password}</code>
+              <button
+                type="button"
+                onClick={() => { void navigator.clipboard.writeText(resetResult.password); }}
+                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 transition"
+              >
+                Copy
+              </button>
+            </div>
+            <p className="mt-3 text-xs text-slate-400">Share this with the admin. They should change it after logging in.</p>
+            <button type="button" onClick={() => setResetResult(null)}
+              className="mt-4 w-full rounded-xl bg-brand-700 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 transition">
+              Done
+            </button>
+          </div>
+        </div>
       )}
 
       <div className="space-y-6">
@@ -326,6 +369,10 @@ export function SettingsPanel({ currentAdminName, currentAdminEmail }: SettingsP
                                   : "border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
                               }`}>
                               {admin.is_active ? "Deactivate" : "Activate"}
+                            </button>
+                            <button type="button" onClick={() => handleResetPassword(admin.id, admin.full_name || admin.username)}
+                              className="inline-flex items-center rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-100">
+                              Reset Password
                             </button>
                             <button type="button" onClick={() => handleDelete(admin.id, admin.full_name || admin.username)}
                               className="inline-flex items-center rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-100">

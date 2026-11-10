@@ -7,6 +7,7 @@ export interface AuthUser {
   id: string;
   username: string;
   name: string;
+  email?: string;
   role: UserRole;
   adminRole?: AdminSubRole;
   department?: string;

@@ -1,7 +1,7 @@
 export interface FacultyPortalNavItem {
   label: string;
   href: string;
-  icon: "dashboard" | "evaluations" | "faculty" | "reports" | "evaluate";
+  icon: "dashboard" | "evaluations" | "faculty" | "reports" | "evaluate" | "settings";
 }
 
 export const facultyPortalNavItems: FacultyPortalNavItem[] = [
@@ -9,4 +9,5 @@ export const facultyPortalNavItems: FacultyPortalNavItem[] = [
   { label: "Evaluate Teacher",  href: "/faculty/evaluate", icon: "evaluate"    },
   { label: "Teachers",          href: "/faculty/faculty",  icon: "faculty"     },
   { label: "Reports",           href: "/faculty/reports",  icon: "reports"     },
+  { label: "Settings",          href: "/faculty/settings", icon: "settings"    },
 ];

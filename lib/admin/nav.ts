@@ -27,6 +27,7 @@ const eoNavItemsBase: AdminNavItem[] = [
   { label: "Semester",             href: "/eo/semester",          icon: "semester",    permissionKeys: ["semester"] },
   { label: "Subjects",             href: "/eo/subjects",          icon: "faculty",     permissionKeys: ["subjects"] },
   { label: "Reports",              href: "/eo/reports",           icon: "reports",     permissionKeys: ["reports.student", "reports.school_head"] },
+  { label: "Settings",             href: "/eo/settings",          icon: "settings" },
 ];
 
 // ── Data Center nav (/dc routes) ─────────────────────────────────────────────
@@ -39,6 +40,7 @@ const dcNavItemsBase: AdminNavItem[] = [
   { label: "Semester",             href: "/dc/semester",          icon: "semester",    permissionKeys: ["semester"] },
   { label: "Subjects",             href: "/dc/subjects",          icon: "faculty",     permissionKeys: ["subjects"] },
   { label: "Reports",              href: "/dc/reports",           icon: "reports",     permissionKeys: ["reports.student", "reports.school_head"] },
+  { label: "Settings",             href: "/dc/settings",          icon: "settings" },
 ];
 
 // ── Super Admin nav — Overview, Manage Permissions, Settings ─────────────────
