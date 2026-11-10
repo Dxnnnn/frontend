@@ -132,7 +132,7 @@ export function SurveyQuestionForm({
           {isActive ? "Open" : "Closed"}
         </button>
         <span className="text-xs text-slate-400">
-          {isActive ? "Visible to students & school heads" : "Hidden from evaluators"}
+          {isActive ? "" : "Hidden from evaluators"}
         </span>
       </div>
 
