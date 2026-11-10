@@ -121,7 +121,9 @@ export function EvaluateTeacherPanel({
     for (const member of faculty) {
       const list = member.subjects
         ? member.subjects.split(",").map((s) => s.trim()).filter(Boolean)
-        : ["General"];
+        : [];
+      // Skip faculty with no assigned subjects entirely
+      if (list.length === 0) continue;
       list.forEach((subject, idx) => {
         cards.push({ member, subject, rowKey: `${member.id}::${subject}::${idx}` });
       });

@@ -217,7 +217,7 @@ function SubjectModal({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/faculty?department=${encodeURIComponent(DEPT_FACULTY_FILTER[dept])}`, { cache: "no-store" })
+    fetch(`/api/faculty?department=${encodeURIComponent(DEPT_FACULTY_FILTER[dept])}&include_empty_subjects=1`, { cache: "no-store" })
       .then((r) => r.json())
       .then((d: { faculty?: Array<{ id: number; name: string }> }) => setFaculty(d.faculty ?? []))
       .catch(() => setFaculty([]));

@@ -18,7 +18,11 @@ export async function GET(request: Request) {
     // If department filter requested, use by-department endpoint
     if (department) {
       backendUrl = `${BACKEND}/api/faculty/by-department/${encodeURIComponent(department)}`;
-      if (semester) backendUrl += `?semester=${encodeURIComponent(semester)}`;
+      const deptParams = new URLSearchParams();
+      if (semester) deptParams.set("semester", semester);
+      const includeEmpty = searchParams.get("include_empty_subjects");
+      if (includeEmpty) deptParams.set("include_empty_subjects", includeEmpty);
+      if (deptParams.toString()) backendUrl += `?${deptParams}`;
     }
 
     const res = await fetch(backendUrl, { cache: "no-store" });
