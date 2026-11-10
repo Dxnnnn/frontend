@@ -22,6 +22,7 @@ function InstructorRow({
   scheduleTime,
   isSelected,
   isAlreadyDone,
+  hideRoomSchedule,
   onSelect,
 }: {
   member: Faculty;
@@ -31,6 +32,7 @@ function InstructorRow({
   scheduleTime: string | null;
   isSelected: boolean;
   isAlreadyDone: boolean;
+  hideRoomSchedule: boolean;
   onSelect: () => void;
 }) {
   return (
@@ -71,23 +73,27 @@ function InstructorRow({
         </div>
       </td>
       <td className="px-4 py-3 text-sm text-slate-600">{subject}</td>
-      <td className="px-4 py-3">
-        {roomNo ? (
-          <span className="inline-block rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{roomNo}</span>
-        ) : (
-          <span className="text-xs text-slate-400">—</span>
-        )}
-      </td>
-      <td className="px-4 py-3">
-        {scheduleDay || scheduleTime ? (
-          <div className="flex flex-col gap-0.5">
-            {scheduleDay && <span className="text-xs font-semibold text-slate-700">{scheduleDay}</span>}
-            {scheduleTime && <span className="text-xs text-slate-500">{scheduleTime}</span>}
-          </div>
-        ) : (
-          <span className="text-xs text-slate-400">—</span>
-        )}
-      </td>
+      {!hideRoomSchedule && (
+        <td className="px-4 py-3">
+          {roomNo ? (
+            <span className="inline-block rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{roomNo}</span>
+          ) : (
+            <span className="text-xs text-slate-400">—</span>
+          )}
+        </td>
+      )}
+      {!hideRoomSchedule && (
+        <td className="px-4 py-3">
+          {scheduleDay || scheduleTime ? (
+            <div className="flex flex-col gap-0.5">
+              {scheduleDay && <span className="text-xs font-semibold text-slate-700">{scheduleDay}</span>}
+              {scheduleTime && <span className="text-xs text-slate-500">{scheduleTime}</span>}
+            </div>
+          ) : (
+            <span className="text-xs text-slate-400">—</span>
+          )}
+        </td>
+      )}
       <td className="px-4 py-3 text-sm text-slate-500">{displayDepartment(member.department)}</td>
       <td className="px-4 py-3 text-center">
         <input
@@ -335,10 +341,32 @@ export function EvaluationFormPanel({
 
   const hasQuestions = useMemo(() => scoringQuestions.length > 0, [scoringQuestions.length]);
 
-  const [studentInfo] = useState<StudentInfo>(() =>
+  const [studentInfo, setStudentInfo] = useState<StudentInfo>(() =>
     typeof window !== "undefined" ? getStudentInfo() : { student_level: "", grade: "", strand: "", section: "", course: "", year_level: "", is_irregular: false, subjects: null }
   );
-  const studentLevel = studentInfo.student_level;
+
+  // Fetch fresh student profile from the server so subject changes made by admin are reflected
+  // without requiring the student to log out and back in.
+  useEffect(() => {
+    void fetch("/api/students/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: { success?: boolean; student?: { student_level?: string; grade?: string; strand?: string; year_level?: string; section?: string; course?: string; is_irregular?: number | boolean; subjects?: string | null } }) => {
+        if (d.success && d.student) {
+          const s = d.student;
+          setStudentInfo({
+            student_level: s.student_level ?? "",
+            grade: s.grade ?? "",
+            strand: s.strand ?? "",
+            section: s.section ?? "",
+            course: s.course ?? "",
+            year_level: s.year_level ?? "",
+            is_irregular: s.is_irregular === 1 || s.is_irregular === true,
+            subjects: s.subjects ?? null,
+          });
+        }
+      })
+      .catch(() => { /* keep cookie fallback */ });
+  }, []);  const studentLevel = studentInfo.student_level;
   const isElemOrJH = studentLevel === "elementary";
 
   useEffect(() => {
@@ -525,6 +553,8 @@ export function EvaluationFormPanel({
   }
 
   const isJHDept = departmentFilter && (departmentFilter.toLowerCase().includes("junior") || departmentFilter.toLowerCase().includes("elementary"));
+  // Hide Room/Schedule columns for junior-high students (they don't have room/schedule data)
+  const isJHStudent = studentLevel === "junior-high" || !!isJHDept;
 
   return (
     <form onSubmit={handleSubmitClick} className="space-y-6">
@@ -590,8 +620,8 @@ export function EvaluationFormPanel({
                   <tr>
                     <th className="px-4 py-3">Instructor Name</th>
                     <th className="px-4 py-3">Subject</th>
-                    <th className="px-4 py-3">Room</th>
-                    <th className="px-4 py-3">Schedule</th>
+                    {!isJHStudent && <th className="px-4 py-3">Room</th>}
+                    {!isJHStudent && <th className="px-4 py-3">Schedule</th>}
                     <th className="px-4 py-3">Department</th>
                     <th className="px-4 py-3 text-center">Select</th>
                   </tr>
@@ -607,6 +637,7 @@ export function EvaluationFormPanel({
                       scheduleTime={row.scheduleTime}
                       isSelected={selectedRowKey === row.rowKey}
                       isAlreadyDone={isRowEvaluated(row)}
+                      hideRoomSchedule={isJHStudent}
                       onSelect={() => { setSelectedRowKey((prev) => prev === row.rowKey ? "" : row.rowKey); setScoringAnswers({}); setError(""); }}
                     />
                   ))}
@@ -688,7 +719,7 @@ export function EvaluationFormPanel({
       {allRowsEvaluated && pendingAnswers.size > 0 && (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-base font-semibold text-slate-900">Remarks <span className="text-slate-400 font-normal text-sm">(optional)</span></h2>
-          <p className="mt-1 text-sm text-slate-500">Add any additional comments or feedback.</p>
+          <p className="mt-1 text-sm text-slate-500">Add any additional comments.</p>
           <textarea
             value={finalRemarks}
             onChange={(e) => setFinalRemarks(e.target.value)}
