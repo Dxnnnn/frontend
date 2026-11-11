@@ -27,7 +27,7 @@ export function AddTeacherModal({ department, onClose, onCreated }: AddTeacherMo
   const [subjects, setSubjects] = useState<string[]>([]);
   const [semester, setSemester] = useState("");
   const [dbSubjects, setDbSubjects] = useState<string[]>([]);
-  const [dbSubjectObjects, setDbSubjectObjects] = useState<Array<{ id: number; name: string }>>([]);
+  const [dbSubjectObjects, setDbSubjectObjects] = useState<Array<{ id: number; name: string; grade: string | null }>>([]);
   const [dbSemesters, setDbSemesters] = useState<string[]>([]);
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState("");
@@ -41,7 +41,7 @@ export function AddTeacherModal({ department, onClose, onCreated }: AddTeacherMo
     return () => document.removeEventListener("keydown", fn);
   }, [onClose]);
 
-  // Load subjects from DB for this department — fetch full objects with IDs
+  // Load subjects from DB for this department — fetch full objects with IDs and grade
   useEffect(() => {
     const deptKey = isJH ? "junior-high"
       : department.toLowerCase().includes("senior") ? "senior-high"
@@ -49,15 +49,25 @@ export function AddTeacherModal({ department, onClose, onCreated }: AddTeacherMo
 
     fetch(`/api/subjects?department=${encodeURIComponent(deptKey)}`, { cache: "no-store" })
       .then((r) => r.json())
-      .then((d: { subjects?: Array<{ id: number; name: string }> }) => {
+      .then((d: { subjects?: Array<{ id: number; name: string; grade?: string | null }> }) => {
+        // Build unique display labels: "Math (Grade 7)", "Math (Grade 9)"
+        // Key = display label, so duplicates across same name+grade collapse but different grades stay separate
         const seen = new Set<string>();
-        const unique = (d.subjects ?? []).filter((s) => {
-          if (seen.has(s.name)) return false;
-          seen.add(s.name);
-          return true;
-        }).sort((a, b) => a.name.localeCompare(b.name));
+        const unique = (d.subjects ?? [])
+          .map((s) => ({ id: s.id, name: s.name, grade: s.grade ?? null }))
+          .filter((s) => {
+            const label = s.grade ? `${s.name} (Grade ${s.grade})` : s.name;
+            if (seen.has(label)) return false;
+            seen.add(label);
+            return true;
+          })
+          .sort((a, b) => {
+            const la = a.grade ? `${a.name} ${a.grade}` : a.name;
+            const lb = b.grade ? `${b.name} ${b.grade}` : b.name;
+            return la.localeCompare(lb);
+          });
         setDbSubjectObjects(unique);
-        setDbSubjects(unique.map((s) => s.name));
+        setDbSubjects(unique.map((s) => s.grade ? `${s.name} (Grade ${s.grade})` : s.name));
       })
       .catch(() => { setDbSubjectObjects([]); setDbSubjects([]); });
   }, [department, isJH]);
@@ -102,7 +112,15 @@ export function AddTeacherModal({ department, onClose, onCreated }: AddTeacherMo
 
     setSaving(true);
     try {
-      // Step 1 — Create the faculty record
+      // Step 1 — Create the faculty record (store plain subject names, not grade-labelled ones)
+      const plainSubjectNames = subjects.map((label) => {
+        // Strip " (Grade X)" suffix added for display — store just the subject name
+        const obj = dbSubjectObjects.find((s) =>
+          (s.grade ? `${s.name} (Grade ${s.grade})` : s.name) === label
+        );
+        return obj ? obj.name : label.replace(/\s*\(Grade [^)]+\)$/, "").trim();
+      });
+
       const res = await fetch("/api/faculty", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -111,7 +129,7 @@ export function AddTeacherModal({ department, onClose, onCreated }: AddTeacherMo
           email: email.trim() || null,
           position: position.trim() || null,
           department: department,
-          subjects,
+          subjects: plainSubjectNames,
           semester: semester || null,
           profile_image: profileImage ?? null,
         }),
@@ -134,7 +152,7 @@ export function AddTeacherModal({ department, onClose, onCreated }: AddTeacherMo
         // Use by-name endpoint — updates ALL rows with that subject name in this department
         // This handles cases where the same subject appears across multiple grade levels
         await Promise.allSettled(
-          subjects.map((subjectName) =>
+          plainSubjectNames.map((subjectName) =>
             fetch("/api/subjects/assign-teacher-by-name", {
               method: "PATCH",
               headers: { "Content-Type": "application/json" },
