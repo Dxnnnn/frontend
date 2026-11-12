@@ -143,30 +143,6 @@ export function downloadFacultyEvaluationPdf(data: FacultyPdfReportData): void {
   }
   y += 2;
 
-  // ── Strengths ──────────────────────────────────────────────────────────────
-  y = ensurePage(doc, y, 24, bottom, left, right);
-  y = sectionTitle(doc, "STRENGTHS", y, left, right);
-  doc.setFont("times", "normal");
-  doc.setFontSize(11);
-  for (const s of data.strengths) {
-    const text = s.endsWith(".") ? s : `${s}.`;
-    y = ensurePage(doc, y, 12, bottom, left, right);
-    y = wrapBullet(doc, text, left + 2, y, right - left - 4);
-  }
-  y += 2;
-
-  // ── Areas for Improvement ──────────────────────────────────────────────────
-  y = ensurePage(doc, y, 24, bottom, left, right);
-  y = sectionTitle(doc, "AREAS FOR IMPROVEMENT", y, left, right);
-  doc.setFont("times", "normal");
-  doc.setFontSize(11);
-  for (const s of data.areasForImprovement) {
-    const text = s.endsWith(".") ? s : `${s}.`;
-    y = ensurePage(doc, y, 12, bottom, left, right);
-    y = wrapBullet(doc, text, left + 2, y, right - left - 4);
-  }
-  y += 2;
-
   // ── Overall Comment ────────────────────────────────────────────────────────
   y = ensurePage(doc, y, 30, bottom, left, right);
   y = sectionTitle(doc, "OVERALL COMMENT", y, left, right);

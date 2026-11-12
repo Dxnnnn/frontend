@@ -464,26 +464,6 @@ export function FacultyDetailReport({
           )}
 
           <div className="print-rule" />
-          <h2 className="print-section">STRENGTHS</h2>
-          <div className="print-rule" />
-
-          <ul className="print-bullets">
-            {strengths.map((s, i) => (
-              <li key={i}>{s.endsWith(".") ? s : `${s}.`}</li>
-            ))}
-          </ul>
-
-          <div className="print-rule" />
-          <h2 className="print-section">AREAS FOR IMPROVEMENT</h2>
-          <div className="print-rule" />
-
-          <ul className="print-bullets">
-            {areasForImprovement.map((s, i) => (
-              <li key={i}>{s.endsWith(".") ? s : `${s}.`}</li>
-            ))}
-          </ul>
-
-          <div className="print-rule" />
           <h2 className="print-section">OVERALL COMMENT</h2>
           <div className="print-rule" />
 
@@ -699,27 +679,6 @@ export function FacultyDetailReport({
                   </li>
                 ))}
               </ul>
-            )}
-          </section>
-
-          {/* ── 8. Performance Trend per Semester ── */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-base font-bold text-slate-900 uppercase tracking-wide border-b border-slate-100 pb-2">Performance Trend per Semester</h2>
-            {semTrend.length <= 1 ? (
-              <p className="text-sm text-slate-400">Not enough semester data to show a trend.</p>
-            ) : (
-              <div className="space-y-3">
-                {semTrend.map((t) => (
-                  <div key={t.sem} className="flex items-center gap-4 text-sm">
-                    <span className="w-32 shrink-0 font-medium text-slate-700">{t.sem}</span>
-                    <div className="flex-1 h-4 overflow-hidden rounded-full bg-slate-100">
-                      <div className={`h-full rounded-full transition-all ${scoreBarBg(t.avg)}`} style={{ width: `${(t.avg/5)*100}%` }} />
-                    </div>
-                    <span className={`w-12 text-right font-semibold ${scoreColor(t.avg)}`}>{t.avg.toFixed(2)}</span>
-                    <span className="w-20 text-right text-xs text-slate-400">{t.count} eval{t.count !== 1 ? "s" : ""}</span>
-                  </div>
-                ))}
-              </div>
             )}
           </section>
 

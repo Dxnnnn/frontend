@@ -27,6 +27,7 @@ interface SemesterOption {
   schoolYear: string;
   term: string;
   label: string;
+  is_active?: number;
 }
 
 interface EvaluateTeacherPanelProps {
@@ -49,6 +50,9 @@ export function EvaluateTeacherPanel({
   const [selectedSubject, setSelectedSubject]   = useState("all");
   const [evaluating, setEvaluating]             = useState<FacultyCard | null>(null);
 
+  // Computed once — JH only uses quarters; SHS and College use semesters
+  const isJH = /junior|elementary|elem/i.test(department) && !/senior/i.test(department);
+
   // ── Refresh evaluated set ────────────────────────────────────────────────────
   const refreshEvaluated = useCallback(() => {
     void getSchoolHeadSubmissionsAsync().then((subs) => {
@@ -62,17 +66,28 @@ export function EvaluateTeacherPanel({
     });
   }, []);
 
-  // ── Load faculty list — always filtered by active semester ──────────────────
+  // ── Load faculty list ────────────────────────────────────────────────────────
   function loadFaculty(semLabel: string) {
-    if (!department) return;
-    // If no active semesters at all, show empty
-    if (semLabel === "none" || semLabel === "all") {
+    if (!department || semLabel === "none") {
       setFaculty([]);
       setLoading(false);
       return;
     }
     setLoading(true);
-    const url = `/api/faculty?department=${encodeURIComponent(department)}&semester=${encodeURIComponent(semLabel)}`;
+
+    // Map individual quarters to their combined equivalent for the faculty semester lookup.
+    // Teachers are stored with "Quarter 1 & 2" or "Quarter 3 & 4" on their record,
+    // so Q1 and Q2 selections both map to "Quarter 1 & 2", Q3 and Q4 to "Quarter 3 & 4".
+    function toFacultySemester(label: string): string {
+      if (label.includes("Quarter 1") && !label.includes("&")) return label.replace("Quarter 1", "Quarter 1 & 2");
+      if (label.includes("Quarter 2") && !label.includes("&")) return label.replace("Quarter 2", "Quarter 1 & 2");
+      if (label.includes("Quarter 3") && !label.includes("&")) return label.replace("Quarter 3", "Quarter 3 & 4");
+      if (label.includes("Quarter 4") && !label.includes("&")) return label.replace("Quarter 4", "Quarter 3 & 4");
+      return label;
+    }
+
+    const facultySemester = toFacultySemester(semLabel);
+    const url = `/api/faculty?department=${encodeURIComponent(department)}&semester=${encodeURIComponent(facultySemester)}`;
     fetch(url, { cache: "no-store" })
       .then((r) => r.json())
       .then((d: { faculty?: FacultyMember[] }) => {
@@ -84,22 +99,31 @@ export function EvaluateTeacherPanel({
       .finally(() => setLoading(false));
   }
 
-  // ── Load active semesters ────────────────────────────────────────────────────
+  // ── Load ALL quarters/semesters for this school head's dept type ─────────────
   useEffect(() => {
     if (!department) return;
-    const isJH = /junior|elementary|elem/i.test(department);
-    fetch("/api/semesters/active", { cache: "no-store" })
+    fetch("/api/semesters/all", { cache: "no-store" })
       .then((r) => r.json())
-      .then((d: { semesters?: Array<{ id: string; schoolYear: string; term: string }> }) => {
+      .then((d: { semesters?: Array<{ id: string; schoolYear: string; term: string; is_active?: number }> }) => {
         const opts: SemesterOption[] = (d.semesters ?? [])
-          .filter((s) => (isJH ? s.term.includes("Quarter") : !s.term.includes("Quarter")))
+          .filter((s) => {
+            if (isJH) {
+              // JH school head sees individual quarters (Q1, Q2, Q3, Q4) ONLY
+              // NOT "Quarter 1 & 2" / "Quarter 3 & 4" — those are for students
+              return s.term === "Quarter 1" || s.term === "Quarter 2" ||
+                     s.term === "Quarter 3" || s.term === "Quarter 4";
+            }
+            // SHS and College school heads see only semester terms (no quarters)
+            return !s.term.includes("Quarter");
+          })
           .map((s) => ({ ...s, label: `SY-${s.schoolYear} ${s.term}` }));
         setSemesterOptions(opts);
-        // Auto-select the first active semester — never show "All" by default
-        if (opts.length > 0) {
-          setSelectedSemester(opts[0].label);
+        // Auto-select the active one, or first available
+        const active = opts.find((s) => s.is_active === 1);
+        const initial = active ?? opts[0];
+        if (initial) {
+          setSelectedSemester(initial.label);
         } else {
-          // No active semesters at all — show empty state
           setSelectedSemester("none");
         }
       })
@@ -169,6 +193,7 @@ export function EvaluateTeacherPanel({
           subject={evaluating.subject}
           schoolHeadId={schoolHeadId}
           schoolHeadName={schoolHeadName}
+          selectedSemester={selectedSemester}
           onClose={() => setEvaluating(null)}
           onSubmitted={() => {
             if (evaluating) {
@@ -205,10 +230,12 @@ export function EvaluateTeacherPanel({
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
             >
               {semesterOptions.length === 0 ? (
-                <option value="none">No active semesters</option>
+                <option value="none">No {isJH ? "quarters" : "semesters"} found — ask EO to create them</option>
               ) : (
                 semesterOptions.map((s) => (
-                  <option key={s.id} value={s.label}>{s.label}</option>
+                  <option key={s.id} value={s.label}>
+                    {s.label}{s.is_active === 1 ? " (Active)" : ""}
+                  </option>
                 ))
               )}
             </select>

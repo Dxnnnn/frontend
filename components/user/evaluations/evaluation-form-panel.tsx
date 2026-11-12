@@ -389,11 +389,19 @@ export function EvaluationFormPanel({
   const semesterOptions = useMemo(() => {
     const base = availableSemesters;
     if (isElemOrJH) return [] as string[];
-    if (studentLevel === "junior-high") return base.filter((s) => s.includes("Quarter"));
-    if (departmentFilter && (departmentFilter.toLowerCase().includes("junior") || departmentFilter.toLowerCase().includes("elementary"))) {
-      return base.filter((s) => s.includes("Quarter"));
+    // JH students only see combined quarters (Quarter 1 & 2, Quarter 3 & 4)
+    // Individual quarters (Q1, Q2, Q3, Q4) are for school heads only
+    // SHS and College students see semesters (1st Semester, 2nd Semester, etc.)
+    const isStudentJH = studentLevel === "junior-high";
+    const isJHDeptFilter = departmentFilter &&
+      /junior|elementary|elem/i.test(departmentFilter) &&
+      !/senior/i.test(departmentFilter);
+    if (isStudentJH || isJHDeptFilter) {
+      return base.filter((s) => s.includes("Quarter 1 & 2") || s.includes("Quarter 3 & 4"));
     }
-    return allowsSummer ? base.filter((s) => !s.includes("Quarter")) : base.filter((s) => !s.includes("Summer") && !s.includes("Quarter"));
+    return allowsSummer
+      ? base.filter((s) => !s.includes("Quarter"))
+      : base.filter((s) => !s.includes("Summer") && !s.includes("Quarter"));
   }, [availableSemesters, allowsSummer, isElemOrJH, studentLevel, departmentFilter]);
 
   const semester = isElemOrJH ? "All" : (!allowsSummer && semesterChoice === "Summer" ? "" : semesterChoice);

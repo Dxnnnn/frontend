@@ -80,7 +80,11 @@ export function AddTeacherModal({ department, onClose, onCreated }: AddTeacherMo
         const options = (d.semesters ?? [])
           .map((s) => `SY-${s.schoolYear} ${s.term}`)
           .filter((label) => {
-            if (isJH) return label.includes("Quarter");
+            if (isJH) {
+              // Only show combined quarters for teacher assignment
+              // Individual quarters (Q1, Q2, Q3, Q4) are for school head evaluation tracking only
+              return label.includes("Quarter 1 & 2") || label.includes("Quarter 3 & 4");
+            }
             return !label.includes("Quarter");
           });
         setDbSemesters(options);

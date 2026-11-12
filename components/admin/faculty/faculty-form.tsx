@@ -117,13 +117,16 @@ export function FacultyForm({ onCreated, embedded = false }: FacultyFormProps) {
     if (dbSemesters.length > 0) {
       return dbSemesters
         .filter((s) => {
+          const isIndividualQuarter = ["Quarter 1", "Quarter 2", "Quarter 3", "Quarter 4"].includes(s.term);
+          // Never show individual quarters in the faculty form — they are for school head evaluation only
+          if (isIndividualQuarter) return false;
           const isQuarter = s.term.includes("Quarter");
-          if (hasElem && !hasSHS && !hasCollege) return isQuarter; // JH only → show quarters only
+          if (hasElem && !hasSHS && !hasCollege) return isQuarter; // JH only → combined quarters only
           if (!hasElem && (hasSHS || hasCollege)) {
-            if (!hasCollege && s.term === "Summer") return false; // no summer for SHS only
-            return !isQuarter; // SHS/College → no quarters
+            if (!hasCollege && s.term === "Summer") return false;
+            return !isQuarter; // SHS/College → semesters only
           }
-          return true; // mixed → show all
+          return true;
         })
         .map((s) => `SY-${s.schoolYear} ${s.term}`);
     }

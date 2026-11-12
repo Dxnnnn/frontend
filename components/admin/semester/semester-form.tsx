@@ -73,7 +73,7 @@ export function SemesterForm({ onCreated, embedded = false }: SemesterFormProps)
 
         <div className="space-y-2">
           <label htmlFor="semester-term" className="block text-sm font-medium text-slate-700">
-            Semester
+            Semester / Quarter
           </label>
           <select
             id="semester-term"
@@ -82,9 +82,21 @@ export function SemesterForm({ onCreated, embedded = false }: SemesterFormProps)
             className={inputClassName}
             required
           >
-            {SEMESTER_TERMS.map((option) => (
-              <option key={option} value={option}>{option}</option>
-            ))}
+            <optgroup label="College Semesters">
+              <option value="1st Semester">1st Semester</option>
+              <option value="2nd Semester">2nd Semester</option>
+              <option value="Summer">Summer</option>
+            </optgroup>
+            <optgroup label="JHS — Student Quarters">
+              <option value="Quarter 1 & 2">Quarter 1 &amp; 2</option>
+              <option value="Quarter 3 & 4">Quarter 3 &amp; 4</option>
+            </optgroup>
+            <optgroup label="JHS / SHS — School Head Quarters">
+              <option value="Quarter 1">Quarter 1</option>
+              <option value="Quarter 2">Quarter 2</option>
+              <option value="Quarter 3">Quarter 3</option>
+              <option value="Quarter 4">Quarter 4</option>
+            </optgroup>
           </select>
         </div>
       </div>
