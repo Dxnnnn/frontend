@@ -58,6 +58,15 @@ export const scoringScale: ScoreLevel[] = [
   { value: 1, label: "Poor", description: "Low score" },
 ];
 
+/** School head uses a different rating scale based on observation frequency */
+export const schoolHeadScoringScale: ScoreLevel[] = [
+  { value: 5, label: "Very True",       description: "Behavior is consistently observed" },
+  { value: 4, label: "True",            description: "Behavior is frequently observed" },
+  { value: 3, label: "Somewhat True",   description: "Behavior is moderately observed" },
+  { value: 2, label: "Somewhat Untrue", description: "Behavior is seldom observed" },
+  { value: 1, label: "Very Untrue",     description: "Behavior is not observed at all" },
+];
+
 export const questionSectionLabels: Record<QuestionSection, string> = {
   scoring: "Scoring scale",
   personal: "Personal questionnaire",

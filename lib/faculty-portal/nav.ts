@@ -8,6 +8,6 @@ export const facultyPortalNavItems: FacultyPortalNavItem[] = [
   { label: "Dashboard",         href: "/faculty",          icon: "dashboard"   },
   { label: "Evaluate Teacher",  href: "/faculty/evaluate", icon: "evaluate"    },
   { label: "Teachers",          href: "/faculty/faculty",  icon: "faculty"     },
-  { label: "Reports",           href: "/faculty/reports",  icon: "reports"     },
+  { label: "Remarks",           href: "/faculty/reports",  icon: "reports"     },
   { label: "Settings",          href: "/faculty/settings", icon: "settings"    },
 ];

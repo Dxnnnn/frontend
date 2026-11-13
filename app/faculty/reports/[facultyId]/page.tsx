@@ -17,6 +17,9 @@ export default async function FacultyPortalReportDetailPage({
       facultyId={facultyId}
       includeSchoolHead
       backHref="/faculty/reports"
+      backLabel="Back to Remarks"
+      reportTitle="FACULTY EVALUATION REMARKS"
+      printLabel="Print Remarks"
       preparerName={user?.name}
       preparerDepartment={user?.department}
       subjectFilter={subject ?? undefined}

@@ -8,7 +8,7 @@ export default async function FacultyReportsPage() {
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <header className="shrink-0 border-b border-slate-200 bg-white px-6 py-5 sm:px-8">
-        <h1 className="text-2xl font-semibold text-slate-900">Reports</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">Remarks</h1>
         <p className="mt-1 text-sm text-slate-500">
           Faculty performance overview for {department}. Click &quot;View Report&quot; to
           see a full detailed evaluation report.
@@ -18,6 +18,7 @@ export default async function FacultyReportsPage() {
         <FacultyPerformanceTable
           departmentFilter={department}
           reportBasePath="/faculty/reports"
+          actionLabel="View Remarks"
           includeSchoolHead
           schoolHeadOnly
           hideSourceToggle

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { getSurveyQuestionsAsync } from "@/lib/evaluations/storage";
 import { addSchoolHeadSubmission } from "@/lib/faculty-portal/coordinator-submissions";
 import type { SurveyQuestion } from "@/lib/types/survey-question";
-import { scoringScale } from "@/lib/types/survey-question";
+import { schoolHeadScoringScale } from "@/lib/types/survey-question";
 
 interface FacultyMember {
   id: number;
@@ -225,7 +225,7 @@ export function FacultyEvaluationModal({
                             <p className="text-sm font-medium text-slate-900">{q.text}</p>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            {scoringScale.map((level) => (
+                            {schoolHeadScoringScale.map((level) => (
                               <label key={level.value}
                                 className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition ${
                                   answers[q.id] === level.value
@@ -273,6 +273,24 @@ export function FacultyEvaluationModal({
                     <textarea value={badRemarks} onChange={(e) => setBadRemarks(e.target.value)} rows={2}
                       placeholder={`What areas should ${faculty.name} improve?`}
                       className="w-full resize-none rounded-xl border border-red-200 bg-red-50/40 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-red-400 focus:ring-4 focus:ring-red-100" />
+                  </div>
+
+                  {/* Rating scale legend */}
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-3">Rating Scale Legend</p>
+                    <div className="space-y-2">
+                      {schoolHeadScoringScale.map((level) => (
+                        <div key={level.value} className="flex items-start gap-3">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white">
+                            {level.value}
+                          </span>
+                          <div>
+                            <span className="text-xs font-semibold text-slate-700">{level.label}</span>
+                            <span className="text-xs text-slate-400"> — {level.description}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

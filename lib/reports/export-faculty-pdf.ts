@@ -18,6 +18,10 @@ export interface FacultyPdfReportData {
   preparerTitle?: string;
   /** Full name of the school head / dean who prepared the report */
   preparerName?: string;
+  /** Document title shown at the top of the PDF (default: FACULTY EVALUATION REPORT) */
+  reportTitle?: string;
+  /** When true, uses school head labels (Conforme instead of Received by) */
+  includeSchoolHead?: boolean;
 }
 
 function rule(doc: jsPDF, y: number, left: number, right: number): number {
@@ -66,7 +70,7 @@ export function downloadFacultyEvaluationPdf(data: FacultyPdfReportData): void {
   y = rule(doc, y, left, right);
   doc.setFont("times", "bold");
   doc.setFontSize(14);
-  doc.text("FACULTY EVALUATION REPORT", pageW / 2, y, { align: "center" });
+  doc.text(data.reportTitle ?? "FACULTY EVALUATION REPORT", pageW / 2, y, { align: "center" });
   y += 5;
   y = rule(doc, y, left, right);
   y += 3;
@@ -169,7 +173,7 @@ export function downloadFacultyEvaluationPdf(data: FacultyPdfReportData): void {
   doc.setFont("times", "bold");
   doc.setFontSize(11);
   doc.text("Prepared by:", col1, y);
-  doc.text("Received by:", col2, y);
+  doc.text(data.includeSchoolHead ? "Conforme:" : "Received by:", col2, y);
   y += 18;
 
   doc.setDrawColor(0);

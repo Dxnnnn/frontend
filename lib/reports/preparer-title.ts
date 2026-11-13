@@ -24,7 +24,7 @@ export function getPreparerTitle(department?: string | null): string {
     d.includes("junior-high") ||
     d.includes("elem")
   ) {
-    return "School Head of Elementary and Junior High School";
+    return "Principal/ Asst. Principal/Coordinator";
   }
 
   return "School Head";

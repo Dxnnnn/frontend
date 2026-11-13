@@ -90,6 +90,8 @@ export interface FacultyPerformanceTableProps {
   departmentFilter?: string;
   /** Where "View Report" navigates (default admin path) */
   reportBasePath?: string;
+  /** Label for the action button (default "View Report") */
+  actionLabel?: string;
   /**
    * When true, merges school-head submissions with student evaluations.
    */
@@ -107,6 +109,7 @@ export interface FacultyPerformanceTableProps {
 export function FacultyPerformanceTable({
   departmentFilter,
   reportBasePath = "/admin/reports",
+  actionLabel = "View Report",
   includeSchoolHead = false,
   schoolHeadOnly = false,
   hideSourceToggle = false,
@@ -293,7 +296,7 @@ export function FacultyPerformanceTable({
                         onClick={() => router.push(`${reportBasePath}/${row.id}?subject=${encodeURIComponent(row.subject)}${source === "school_head" ? "&source=school_head" : ""}`)}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-blue-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-800"
                       >
-                        View Report
+                        {actionLabel}
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5" aria-hidden="true">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>

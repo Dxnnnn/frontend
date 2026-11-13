@@ -124,20 +124,21 @@ export function FacultyDetailReport({
   facultyId,
   includeSchoolHead = false,
   backHref,
+  backLabel = "Back to Reports",
+  reportTitle = "FACULTY EVALUATION REPORT",
+  printLabel = "Print Report",
   preparerName: preparerNameProp,
   preparerDepartment: preparerDepartmentProp,
   subjectFilter,
 }: {
   facultyId: string;
-  /** Include school-head evaluations alongside student submissions */
   includeSchoolHead?: boolean;
-  /** Prefer explicit path over browser history (portal-safe back navigation) */
   backHref?: string;
-  /** Logged-in school head / dean full name for Prepared by */
+  backLabel?: string;
+  reportTitle?: string;
+  printLabel?: string;
   preparerName?: string;
-  /** Logged-in school head department (used to resolve Dean / School Head title) */
   preparerDepartment?: string;
-  /** Filter report to a specific subject only */
   subjectFilter?: string;
 }) {
   const router = useRouter();
@@ -229,7 +230,7 @@ export function FacultyDetailReport({
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
-            Back to Reports
+            {backLabel}
           </button>
           <h1 className="text-2xl font-semibold text-slate-900">Faculty Report</h1>
         </header>
@@ -296,8 +297,15 @@ export function FacultyDetailReport({
     return { sem, avg: avg(scores), count: semSubs.length };
   });
 
-  // Comments
-  const comments = subs.filter((s) => s.remarks && s.remarks.trim()).map((s) => s.remarks!.trim());
+  // Comments — split by source
+  const studentComments = subs
+    .filter((s) => s.source === "student" && s.remarks && s.remarks.trim())
+    .map((s) => s.remarks!.trim());
+  const schoolHeadComments = subs
+    .filter((s) => s.source === "school_head" && s.remarks && s.remarks.trim())
+    .map((s) => s.remarks!.trim());
+  // Keep combined for backward compatibility with writtenStrengths/writtenAreas parsing
+  const comments = [...studentComments, ...schoolHeadComments];
 
   // Parse written remarks from school head submissions
   // Format: "[Strengths] text | [Areas for Improvement] text"
@@ -353,6 +361,8 @@ export function FacultyDetailReport({
         overallComment: overallComment(overallAvg),
         preparerTitle,
         preparerName,
+        reportTitle,
+        includeSchoolHead,
       });
     } finally {
       // Brief delay so the button shows feedback even if save is instant
@@ -371,7 +381,7 @@ export function FacultyDetailReport({
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
-              Back to Reports
+              {backLabel}
             </button>
             <h1 className="text-xl font-semibold text-slate-900">Faculty Detailed Report</h1>
             <p className="mt-0.5 text-sm text-slate-500">
@@ -384,7 +394,7 @@ export function FacultyDetailReport({
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
               </svg>
-              Print Report
+              {printLabel}
             </button>
             <button
               type="button"
@@ -414,7 +424,7 @@ export function FacultyDetailReport({
       <div id="faculty-print-report" className="hidden print:block" aria-hidden="true">
         <div className="print-doc">
           <div className="print-rule" />
-          <h1 className="print-title">FACULTY EVALUATION REPORT</h1>
+          <h1 className="print-title">{reportTitle}</h1>
           <div className="print-rule" />
 
           <div className="print-meta">
@@ -511,7 +521,7 @@ export function FacultyDetailReport({
               <p className="print-sig-date">Date: ____________</p>
             </div>
             <div className="print-sig-col">
-              <p className="print-sig-label">Received by:</p>
+              <p className="print-sig-label">{includeSchoolHead ? "Conform:" : "Received by:"}</p>
               <div className="print-sig-line" />
               <p className="print-sig-name print-sig-blank">________________________</p>
               <p className="print-sig-role">Faculty Member</p>
@@ -666,21 +676,38 @@ export function FacultyDetailReport({
             </div>
           </section>
 
-          {/* ── 7. Anonymous Student Comments ── */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-base font-bold text-slate-900 uppercase tracking-wide border-b border-slate-100 pb-2">Anonymous Student Comments</h2>
-            {comments.length === 0 ? (
-              <p className="text-sm text-slate-400">No comments submitted.</p>
-            ) : (
-              <ul className="space-y-3 max-h-64 overflow-y-auto">
-                {comments.map((c, i) => (
-                  <li key={i} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700 italic">
-                    &ldquo;{c}&rdquo;
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          {/* ── 7. Comments section — label depends on source ── */}
+          {includeSchoolHead ? (
+            /* School head report — show school head evaluator remarks */
+            schoolHeadComments.length > 0 && (
+              <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="mb-4 text-base font-bold text-slate-900 uppercase tracking-wide border-b border-slate-100 pb-2">School Head Evaluator Remarks</h2>
+                <ul className="space-y-3 max-h-64 overflow-y-auto">
+                  {schoolHeadComments.map((c, i) => (
+                    <li key={i} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700 italic">
+                      &ldquo;{c}&rdquo;
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )
+          ) : (
+            /* Student report — show anonymous student comments */
+            <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="mb-4 text-base font-bold text-slate-900 uppercase tracking-wide border-b border-slate-100 pb-2">Anonymous Student Comments</h2>
+              {studentComments.length === 0 ? (
+                <p className="text-sm text-slate-400">No comments submitted.</p>
+              ) : (
+                <ul className="space-y-3 max-h-64 overflow-y-auto">
+                  {studentComments.map((c, i) => (
+                    <li key={i} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-700 italic">
+                      &ldquo;{c}&rdquo;
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          )}
 
           {/* ── 9. Subjects Handled ── */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

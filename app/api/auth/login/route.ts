@@ -82,7 +82,8 @@ export async function POST(request: Request) {
       permissions: permissionsMap,
     };
 
-    const sessionMaxAge = body.rememberMe ? 60 * 60 * 24 * 30 : undefined;
+    // Admin cookies always persist for 30 days regardless of rememberMe
+    const sessionMaxAge = 60 * 60 * 24 * 30; // 30 days
 
     const response = NextResponse.json({ user });
 
